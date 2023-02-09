@@ -1,0 +1,6 @@
+^PEMcollectr\.Rproj$
+^\.Rproj\.user$
+^LICENSE\.md$
+^data/
+^inst/devel/
+^\.lintr$
