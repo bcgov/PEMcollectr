@@ -3,4 +3,9 @@
 # PEMcollectr
 A shiny app for uploading PEM field data
 
-Check if for collab
+
+```
+devtools::install_github('bcgov/PEMcollectr')
+PEMcollectr::runPEMApp(local = FALSE)
+```
+
