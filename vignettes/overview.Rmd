@@ -1,0 +1,82 @@
+---
+title: "Overview"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Overview}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(PEMcollectr)
+```
+
+## Running the app from the installed package
+
+```r
+run_PEM_app(local = FALSE)
+```
+
+
+## Data Validation
+
+The core data validation functions are function factories and meant to be applied 
+to a single column of data or vector.
+
+```{r}
+validate_character()(LETTERS)
+```
+
+
+The function factories must return  a list with status (TRUE/FALSE) and an
+informative message. If the validation passes, `''` is returned.
+
+```{r}
+validate_integer()(LETTERS)
+```
+
+You can apply multiple validations to a single vector by passing the 
+functions in the `...` argument. The messages are combined collapsed into a 
+single message with ";".
+
+```{r}
+validate_data(x = LETTERS, validate_integer(), validate_float())
+```
+
+Apply all tests to an sf data.frame object.
+
+```r
+validate_PEM_data(PEMPoints, f = validate_field_points_data)
+```
+
+## Data
+
+Categories of data are provided as functions that produce named vectors.
+
+```{r}
+point_type()
+```
+
+## Postgresql DB Interactions
+
+Connect to PG database with preferred functions for developing locally or 
+for deployment. Set the `PGHOST`, `PGUSER`, `PGPASSWORD` environment 
+variables to authenticate.
+
+```r
+con <- connect_pg(dbname = 'PEM')
+```
+
+Append data to a table.
+
+```r
+append_db(con, PEMPoints, 'staging.staging.field_points_data')
+```
+

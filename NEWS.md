@@ -1,5 +1,7 @@
 # PEMcollectr 0.0.1
 
+* Added dbWrite shiny module
+
 * Added geomUpload shiny module
 
 * Added testthat framework

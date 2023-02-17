@@ -4,3 +4,6 @@
 ^data/
 ^inst/devel/
 ^\.lintr$
+^\.github$
+^doc$
+^Meta$

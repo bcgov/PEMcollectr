@@ -1,11 +1,12 @@
-library(shiny)
 shiny::fluidPage(
   shiny::fluidRow(
     shiny::column(width = 3,
-      geomUploadUi('geomUpload')
+      geomUploadUi('geomUpload'),
+      shiny::tags$div(style = 'height: 20px;'),
+      dbWriteUi('dbWrite')
     ),
-    shiny::column(width = 6,
-      shiny::tableOutput('dataValidation')
+    shiny::column(width = 9,
+      validateTableUi('validateTable')
     )
   )
 )
