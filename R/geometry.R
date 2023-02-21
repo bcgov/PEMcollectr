@@ -68,7 +68,8 @@ geomUploadServer <- function(id) {
         shiny::actionButton(inputId = ns('validateFile'), 'Validate')
       })
       sfObject <- shiny::eventReactive(input$validateFile, {
-        st_read(dsn = filePath(), layer = input$selectedLayer)
+        sf::st_read(dsn = filePath(), layer = input$selectedLayer,
+          quiet = TRUE)
       })
       return(sfObject)
     }

@@ -12,6 +12,15 @@
 \alias{validate_missing}
 \alias{validate_nothing}
 \alias{validate_geometry}
+\alias{validate_geometry_type}
+\alias{validate_contains}
+\alias{validate_char_length}
+\alias{validate_transect_id}
+\alias{validate_points_column}
+\alias{validate_PEM_data}
+\alias{validate_tracklog_column}
+\alias{err_column_name}
+\alias{validate_field_points_data}
 \title{Validation tests for vectors}
 \usage{
 validate_data(x, ...)
@@ -26,13 +35,31 @@ validate_integer()
 
 validate_date()
 
-validate_time(x)
+validate_time()
 
 validate_missing()
 
 validate_nothing()
 
 validate_geometry()
+
+validate_geometry_type(geometryType)
+
+validate_contains(string, times = 1L, exact = FALSE)
+
+validate_char_length(maxLength)
+
+validate_transect_id()
+
+validate_points_column(x, colName)
+
+validate_PEM_data(dataFrame, f)
+
+validate_tracklog_column(x, colName)
+
+err_column_name(colName)
+
+validate_field_points_data(transectPoints)
 }
 \arguments{
 \item{x}{vector of values to test}
@@ -40,6 +67,24 @@ validate_geometry()
 \item{...}{validation functions for x. See example for writing custom tests.}
 
 \item{members}{vector of values to test membership}
+
+\item{geometryType}{geometry type to validate}
+
+\item{string}{character to vector to match}
+
+\item{times}{integer exact number of expected matches}
+
+\item{exact}{TRUE matches the exact times arg and FALSE is >= times}
+
+\item{maxLength}{integer maximum allowable character length}
+
+\item{colName}{character vector size 1 of column to validate}
+
+\item{dataFrame}{data.frame to validate}
+
+\item{f}{a column validation function for PEM data}
+
+\item{transectPoints}{sf object with transect field points data}
 }
 \value{
 list with status of pass/fail and message of error

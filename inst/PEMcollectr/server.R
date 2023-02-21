@@ -1,8 +1,7 @@
-library(shiny)
 function(input, output, session) {
   sfObject <- geomUploadServer('geomUpload')
-  output$dataValidation <- shiny::renderTable({
-    shiny::req(sfObject())
-    sf::st_drop_geometry(sfObject())
-  })
+  submitIds <- validateTableServer('validateTable', sfObject = sfObject)
+  dbWrite <- dbWriteServer('dbWrite',
+    sfObject = shiny::reactive({
+      sfObject()[sfObject()[['transect_id']] %in% submitIds(), ]}))
 }

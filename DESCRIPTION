@@ -11,7 +11,14 @@ RoxygenNote: 7.2.2
 Imports:
     sf,
     shiny,
-    stats
+    RPostgres,
+    DBI,
+    pool,
+    data.table,
+    reactable
 Suggests: 
+    knitr,
+    rmarkdown,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
+VignetteBuilder: knitr
