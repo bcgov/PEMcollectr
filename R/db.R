@@ -100,24 +100,31 @@ dbWriteServer <- function(id, sfObject, tableName, con) {
     function(input, output, session) {
       ns <- session$ns
       output$submitIds <- shiny::renderUI({
-        shiny::req(nrow(sfObject()) > 0)
-        shiny::tags$div(
-          shiny::tags$h6('Upload datasets: '),
-          shiny::tags$ul(lapply(unique(sfObject()[['transect_id']]),
-            shiny::tags$li))
-        )
+        shiny::req(sfObject())
+        if (nrow(sfObject()) < 1) {
+          shiny::tags$em('Select rows in Validation Results to submit')
+        } else {
+          shiny::tags$div(
+            shiny::tags$h6('Upload datasets: '),
+            shiny::tags$ul(lapply(unique(sfObject()[['transect_id']]),
+              shiny::tags$li))
+          )
+        }
       })
       output$submitUi <- shiny::renderUI({
         shiny::req(nrow(sfObject()) > 0)
-        shiny::actionButton(inputId = ns('submit'), label = 'Submit')
+        shiny::actionButton(inputId = ns('submit'), label = 'Submit',
+          class = 'btn-primary btn-sm')
       })
       shiny::observeEvent(input$submit, {
         shiny::req(nrow(sfObject()) > 0)
-        trySubmit <- tryCatch(append_db(con = con, x = sfObject,
+        trySubmit <- tryCatch(append_db(con = con, x = sfObject(),
           tableName = tableName),
           error = identity)
         if (inherits(x = trySubmit, 'error')) {
           shiny::showNotification(ui = trySubmit$message, type = 'error')
+        } else {
+          shiny::showNotification(ui = 'Data uploaded', type = 'default')
         }
       })
     })

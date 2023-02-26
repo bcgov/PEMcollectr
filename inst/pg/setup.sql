@@ -51,3 +51,9 @@ GRANT USAGE ON SCHEMA staging to <uid>;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA staging to <uid>;
 GRANT USAGE ON SCHEMA transects to <uid>;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA transects to <uid>;
+
+CREATE TABLE transects.sample_plan (
+	"id"          SERIAL PRIMARY KEY,
+	mapunit       varchar(255),
+	geom          geometry --lines
+);

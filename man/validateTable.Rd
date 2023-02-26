@@ -4,11 +4,17 @@
 \alias{validateTable}
 \alias{validateTableUi}
 \alias{validateTableServer}
+\alias{validatePairsUi}
+\alias{validatePairsServer}
 \title{Shiny Module to validate and report}
 \usage{
 validateTableUi(id)
 
 validateTableServer(id, sfObject)
+
+validatePairsUi(id)
+
+validatePairsServer(id, sfObject)
 }
 \arguments{
 \item{id}{namespace id}
@@ -17,4 +23,6 @@ validateTableServer(id, sfObject)
 }
 \description{
 Shiny Module to validate and report
+
+Shiny Module to validate transect pairs
 }
