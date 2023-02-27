@@ -59,12 +59,6 @@ geomUploadServer <- function(id) {
         shiny::selectInput(inputId = ns('selectedLayer'),
           label = 'Select Layer', choices = layerNames$name, width = '100%')
       })
-      # output$geometryTypeUi <- shiny::renderUI({
-      #   shiny::req(filePath())
-      #   shiny::selectInput(inputId = ns('geometryType'),
-      #     label = 'Geometry Type', choices = c('points', 'lines'),
-      #     width = '100%')
-      # })
       filePath <- shiny::reactive({
         shiny::req(input$selectedFile)
         if (isFALSE(check_req_files(selectedFile = input$selectedFile,
@@ -85,6 +79,11 @@ geomUploadServer <- function(id) {
       sfObject <- shiny::eventReactive(input$validateFile, {
         sfObject <- sf::st_read(dsn = filePath(), layer = input$selectedLayer,
           quiet = TRUE)
+        if (!'transect_id' %in% names(sfObject)) {
+          shiny::showNotification(ui = 'Data must contain at minimum a "transect_id" column.',
+            duration = NULL, type = 'error')
+          return(NULL)
+        }
         sfObject[['transect_id']][
           sfObject[['data_type']] == data_type()['incidental sampling']] <-
           'incidental'
@@ -102,4 +101,19 @@ check_req_files <- function(selectedFile, uploadedFiles) {
   } else {
     TRUE
   }
+}
+#' Guess the geometry type of  a sf or sfc object
+#'
+#' @param sfObject
+#'
+#' sf dataframe object
+#'
+#' @return
+#'
+#' character vector size 1 with geometry type
+#'
+#' @export
+#'
+guess_geometry_type <- function(sfObject) {
+  as.character(unique(sf::st_geometry_type(sfObject))[1])
 }

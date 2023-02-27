@@ -506,6 +506,14 @@ expand_list <- function(x, n = 4, times) {
 #'
 #' reactive object returning sf data.frame
 #'
+#' @param success
+#'
+#' reactive trigger when data is successfully uploaded
+#'
+#' @param con
+#'
+#' connection to postgres database
+#'
 #' @export
 #'
 #' @name validateTable
@@ -519,16 +527,28 @@ validateTableUi <- function(id) {
 #' @export
 #'
 #' @rdname validateTable
-validateTableServer <- function(id, sfObject) {
+validateTableServer <- function(id, sfObject, success, con) {
   shiny::moduleServer(
     id,
     function(input, output, session) {
       validationResults <- shiny::reactive({
         shiny::req(sfObject())
-        geometryType <- unique(sf::st_geometry_type(sfObject()))[1]
+        success$depend()
+        geometryType <- guess_geometry_type(sfObject())
+        stagingTable <- staging_tables()[[geometryType]]
+        sfObject <- tryCatch(
+          filter_in_db(con = con,
+            tableName = stagingTable, sfObject = sfObject()),
+          error = identity)
+        if (inherits(x = sfObject, 'error')) {
+          shiny::showNotification(
+            ui = 'Network connection error: database is unavailable. Please try again.',
+            duration = 5, type = 'error')
+          return(NULL)
+        }
         if (geometryType %in% 'POINT') {
           results <- data.table::rbindlist(
-            lapply(validate_field_points_data(sfObject()),
+            lapply(validate_field_points_data(sfObject),
               data.table::as.data.table),
             fill = TRUE, idcol = 'id')
           results[['Valid']] <- vapply(
@@ -538,7 +558,7 @@ validateTableServer <- function(id, sfObject) {
             }, FUN.VALUE = logical(1))
         } else if (geometryType %in% c('LINESTRING', 'MULTILINESTRING')) {
           results <- data.table::rbindlist(
-            lapply(validate_field_tracklog_data(sfObject()),
+            lapply(validate_field_tracklog_data(sfObject),
               data.table::as.data.table),
             fill = TRUE, idcol = 'id')
           results[['Valid']] <- vapply(
@@ -640,6 +660,14 @@ validateTableServer <- function(id, sfObject) {
 #'
 #' reactive object returning sf data.frame
 #'
+#' @param success
+#'
+#' reactive trigger when data is successfully uploaded
+#'
+#' @param con
+#'
+#' connection to postgres database
+#'
 #' @export
 #'
 #' @name validateTable
@@ -653,7 +681,7 @@ validatePairsUi <- function(id) {
 #' @export
 #'
 #' @rdname validateTable
-validatePairsServer <- function(id, sfObject) {
+validatePairsServer <- function(id, sfObject, success, con) {
   shiny::moduleServer(
     id,
     function(input, output, session) {
@@ -662,7 +690,14 @@ validatePairsServer <- function(id, sfObject) {
       })
       output$pairValidation <- reactable::renderReactable({
         shiny::req(sfObject())
-        transectIds <- c(sort(unique(stats::na.omit(sfObject()$transect_id))))
+        success$depend()
+        geometryType <- guess_geometry_type(sfObject())
+        stagingTable <- staging_tables()[[geometryType]]
+        sfObject <- tryCatch(
+          filter_in_db(con = con,
+            tableName = stagingTable, sfObject = sfObject()),
+          error = identity)
+        transectIds <- c(sort(unique(stats::na.omit(sfObject$transect_id))))
         transectIds <- transectIds[transectIds != 'incidental']
         validatePairs <- vapply(
           validate_sample_pairs(transectIds = transectIds), FUN = getElement,

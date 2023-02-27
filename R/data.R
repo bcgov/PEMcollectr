@@ -4972,3 +4972,13 @@ map_unit_veg <- function() {
   )
   stats::setNames(mapUnits, mapUnits)
 }
+#' @export
+#'
+#' @rdname PEMData
+staging_tables <- function() {
+  list(
+    'POINT' = DBI::SQL('staging.field_data_points'),
+    'LINESTRING' = DBI::SQL('staging.field_tracklog'),
+    'MULTILINESTRING' = DBI::SQL('staging.field_tracklog')
+  )
+}

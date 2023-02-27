@@ -72,6 +72,11 @@ make_reactive_trigger <- function() {
     }
   )
 }
+#' BCGov Shiny theme
+#'
+#' A function to create a theme for shiny
+#'
+#' @export
 bcgov_theme <- bslib::bs_add_rules(
   bslib::bs_theme(version = 5, bootswatch = 'materia',
     primary = '#003366',

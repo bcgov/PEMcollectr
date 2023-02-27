@@ -11,6 +11,7 @@
 \alias{edatope}
 \alias{transect_location}
 \alias{map_unit_veg}
+\alias{staging_tables}
 \title{Functions to produce a list of categories for PEM}
 \usage{
 map_unit_non_veg()
@@ -30,6 +31,8 @@ edatope()
 transect_location()
 
 map_unit_veg()
+
+staging_tables()
 }
 \value{
 named list with code as name and description as value

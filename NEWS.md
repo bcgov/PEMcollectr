@@ -1,6 +1,12 @@
 # PEMcollectr 0.0.1
 
-* 
+* added check for transect_id column before validation
+
+* reactive trigger added to keep data in sync with database
+
+* validations are now filtered by what is in staging already
+
+* review column added for mapunit1
 
 * added module for checking transect pairs
 
