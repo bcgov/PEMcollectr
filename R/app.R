@@ -25,6 +25,10 @@ run_PEM_app <- function(local = TRUE) {
 #'
 #' additional classes to add
 #'
+#' @param headerClass
+#'
+#' additional classes to add to header only
+#'
 #' @param style
 #'
 #' additional styles to add to card
@@ -37,9 +41,11 @@ run_PEM_app <- function(local = TRUE) {
 card <- function(...,
   title,
   class = '',
-  style = '') {
+  style = '',
+  headerClass = 'bg-primary') {
   shiny::tags$div(class = paste('card', class, collapse = ' ', sep = ' '),
-    shiny::tags$div(class = 'card-header', title),
+    shiny::tags$div(class = paste('card-header', headerClass, collapse = ' '),
+      title),
     shiny::tags$div(class = 'card-body', ...),
     style = style
   )
@@ -66,3 +72,21 @@ make_reactive_trigger <- function() {
     }
   )
 }
+#' BCGov Shiny theme
+#'
+#' A function to create a theme for shiny
+#'
+#' @export
+bcgov_theme <- bslib::bs_add_rules(
+  bslib::bs_theme(version = 5, bootswatch = 'materia',
+    primary = '#003366',
+    'progress-height' = '1rem',
+    'navbar-padding-y' = '.1rem'),
+  '.navbar.navbar-default {
+    background-color: $primary !important;
+  }
+  body {
+    background-color: #00000020;
+  };
+  ')
+

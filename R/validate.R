@@ -20,6 +20,10 @@
 #'
 #' character vector size 1 of column to validate
 #'
+#' @param optional
+#'
+#' TRUE/FALSE for whether missing values are acceptable
+#'
 #' @param ...
 #'
 #' validation functions for x. See example for writing custom tests.
@@ -68,15 +72,21 @@ collect_validations <- function(validations) {
 #' @rdname validate
 #'
 #' @export
-validate_membership <- function(members) {
+validate_membership <- function(members, optional = FALSE) {
   function(x) {
     isValid <- x %in% members
+    invalidSet <- unique(stats::na.omit(x[!isValid]))
+    invalidSet <- ifelse(length(invalidSet) < 1, 'missing',
+      sprintf('not in set [%s]', paste(invalidSet, collapse = ', ')))
+    if (isTRUE(optional)) {
+      isValid <- isValid | is.na(x)
+    }
     success <- all(isValid)
     description <- ifelse(success, '',
-      sprintf('Invalid categories: %d records (%.2f%%) not in set',#(%s).',
+      sprintf('Invalid categories: %d records (%.2f%%) %s.',
         sum(!isValid, na.rm = TRUE),
-        100 * sum(!isValid, na.rm = TRUE) / length(isValid)
-        #,paste(members, collapse = ', ')
+        100 * sum(!isValid, na.rm = TRUE) / length(isValid),
+        invalidSet
         ))
     list(status = success, message = description)
   }
@@ -134,9 +144,12 @@ validate_date <- function() {
 #' @rdname validate
 #'
 #' @export
-validate_time <- function() {
+validate_time <- function(optional = FALSE) {
   function(x) {
     isValid <- grepl('^\\:[0-9]{2}\\:[0-9]{2}\\$', x)
+    if (isTRUE(optional)) {
+      isValid <- isValid | is.na(x)
+    }
     success <- all(isValid)
     description <- ifelse(success, '',
       make_format_message(title = 'Invalid times', isValid = isValid,
@@ -149,7 +162,7 @@ validate_time <- function() {
 #' @export
 validate_missing <- function() {
   function(x) {
-    isValid <- is.na(x) | x == ''
+    isValid <- is.na(x)
     success <- any(isValid)
     description <- ifelse(success, '',
       sprintf('Missing records:\n%d records (%.2f%%) missing.',
@@ -206,9 +219,16 @@ validate_geometry_type <- function(geometryType) {
 #' @export
 validate_contains <- function(string, times = 1L, exact = FALSE) {
   function(x) {
-    success <- identical(sum(x %in% string, na.rm = TRUE), times)
-    description <- ifelse(success, '', sprintf('%s must appear %d time(s).',
-      string, times))
+    if (isTRUE(exact)) {
+      success <- sum(x %in% string, na.rm = TRUE) == times
+      description <- ifelse(success, '', sprintf('%s must appear %d time(s).',
+        string, times))
+    } else {
+      success <- sum(x %in% string, na.rm = TRUE) >= times
+      description <- ifelse(success, '',
+        sprintf('%s must appear at least %d time(s).',
+        string, times))
+    }
     list(status = success, message = description)
   }
 }
@@ -236,12 +256,27 @@ validate_char_length <- function(maxLength) {
 #' @export
 validate_transect_id <- function() {
   function(x) {
-    validPattern <- '[A-Z]{3,4}[a-z]{2}[0-9]*\\_[0-9]{1}\\.[0-9]{1}_[0-9]+\\_c*[A-Za-z]+'
-    isValid <- grepl(validPattern, x)
-    success <- all(isValid)
-    description <- ifelse(success, '',
-      make_format_message(title = 'Invalid times', isValid = isValid,
-        specification = 'AAAaa#_#.#_#_#_AAA'))
+    if ( all(x == 'incidental')) {
+      return(list(status = TRUE, message = ''))
+    }
+    transectParts <- data.table::tstrsplit(x, '_')
+    if (length(transectParts) != 4) {
+      return(list(status = TRUE, message = 'Invalid transect_id format'))
+    }
+    names(transectParts) <- sprintf('part%d', 1:4)
+    isValidMapUnit <- validate_membership(
+      members = c(sub('\\/.*', '', map_unit_veg()), map_unit_non_veg())
+      )(transectParts[['part1']])
+    isValidTransectLocation <- validate_membership(
+      members = transect_location())(transectParts[['part4']])
+    isValidSegments <- validate_float()(as.numeric(transectParts[['part2']]))
+    isValidTotal <- validate_integer()(as.integer(transectParts[['part3']]))
+    #validPattern <- '[A-Z]{3,4}[a-z]{2}[0-9]*\\_[0-9]{1}\\.[0-9]{1}_[0-9]+\\_c*[A-Za-z]+'
+    validResults <- list(isValidMapUnit, isValidTransectLocation, isValidSegments,
+      isValidTotal)
+    success <- all(vapply(validResults, FUN = getElement,
+      FUN.VALUE = logical(1), name = 'status'))
+    description <- collect_validations(validResults)
     list(status = success, message = description)
   }
 }
@@ -252,38 +287,101 @@ make_format_message <- function(title, isValid, specification) {
     100 * sum(!isValid, na.rm = TRUE) / length(isValid),
     specification)
 }
+#' @param mapunit1
+#'
+#' first map unit
+#'
+#' @param mapunit2
+#'
+#' second map unit
+#'
 #' @rdname validate
 #'
 #' @export
-validate_points_column <- function(x, colName) {
-  switch(colName,
-    id = validate_data(x = x, validate_nothing()),
-    order = validate_data(x = x, validate_integer()),
-    date_ymd = validate_data(x = x, validate_date()),
-    time_hms = validate_data(x = x, validate_time()),
-    transect_id = validate_data(x = x, validate_nothing()),
-    observer = validate_data(x = x, validate_missing()),
-    point_type = validate_data(x = x,
+validate_map_unit_change <- function(mapunit1, mapunit2) {
+  function(x) {
+    # convert to "NA" for comparisons as "!=" will return NA
+    isValid <- sprintf('%s', mapunit1) != sprintf('%s', mapunit2)
+    success <- all(isValid)
+    description <- ifelse(success, '', 'Invalid pair:
+mapunit1 is the same as mapunit2.')
+    list(status = success, message = description)
+  }
+}
+#' @rdname validate
+#'
+#' @export
+validate_map_unit_transition <- function(mapunit2) {
+  function(x) {
+    isValid <- (!is.na(mapunit2) & !is.na(x)) |
+      (is.na(mapunit2) & is.na(x))
+    success <- all(isValid)
+    description <- ifelse(success, '', 'Missing pair:
+transition must be included if mapunit2 is specified.')
+    list(status = success, message = description)
+  }
+}
+#' @rdname validate
+#'
+#' @export
+validate_points_column <- function(dataFrame, colName) {
+  if (all(dataFrame[['transect_id']] == 'incidental')) {
+    observerVal <- validate_data(x = dataFrame[[colName]],
+      validate_nothing())
+    pointTypeVal <- validate_data(x = dataFrame[[colName]],
+      validate_nothing())
+  } else {
+    pointTypeVal <- validate_data(x = dataFrame[[colName]],
       validate_contains(point_type()['POC'], times = 1L),
       validate_contains(point_type()['POT'], times = 1L),
       validate_contains(point_type()['TP1'], times = 1L),
-      validate_contains(point_type()['TP2'], times = 1L)
-    ),
-    mapunit1 = validate_data(x = x, validate_membership(members = map_unit())),
-    mapunit2 = validate_data(x = x, validate_membership(members = map_unit())),
+      validate_contains(point_type()['TP2'], times = 1L))
+    observerVal <- validate_data(x = dataFrame[[colName]],
+      validate_missing())
+  }
+  switch(colName,
+    id = validate_data(x = dataFrame[[colName]],
+      validate_nothing()),
+    order = validate_data(x = dataFrame[[colName]],
+      validate_integer()),
+    date_ymd = validate_data(x = dataFrame[[colName]],
+      validate_date()),
+    time_hms = validate_data(x = dataFrame[[colName]],
+      validate_time(optional = TRUE)),
+    transect_id = validate_data(x = dataFrame[[colName]],
+      validate_transect_id()),
+    observer = observerVal,
+    point_type = pointTypeVal,
+    mapunit1 = validate_data(x = dataFrame[[colName]],
+      validate_membership(members = c(map_unit_veg(), map_unit_non_veg()))),
+    mapunit2 = validate_data(x = dataFrame[[colName]],
+      validate_membership(members = c(map_unit_veg(), map_unit_non_veg()),
+        optional = TRUE)),
     transition =
-      validate_data(x = x, validate_membership(members = transition())),
-    struc_change =
-      validate_data(x = x, validate_membership(members = struc_change())),
+      validate_data(x = dataFrame[[colName]],
+        validate_map_unit_change(dataFrame[['mapunit1']],
+          dataFrame[['mapunit2']]),
+        validate_map_unit_transition(dataFrame[['mapunit2']]),
+        validate_membership(members = transition(), optional = TRUE)),
+    struc_stage =
+      validate_data(x = dataFrame[[colName]],
+        validate_membership(members = struc_stage())),
     struc_mod =
-          validate_data(x = x, validate_membership(members = struc_mod())),
-    edatope = validate_data(x = x, validate_character()),
-    comments = validate_data(x = x, validate_character(),
+      validate_data(x = dataFrame[[colName]],
+        validate_membership(members = struc_mod())),
+    edatope = validate_data(x = dataFrame[[colName]],
+      validate_character(),
+      validate_membership(members = edatope(), optional = TRUE)),
+    comments = validate_data(x = dataFrame[[colName]],
+      validate_character(),
       validate_char_length(255)),
-    photos = validate_data(x = x, validate_character()),
+    photos = validate_data(x = dataFrame[[colName]],
+      validate_character()),
     data_type =
-      validate_data(x = x, validate_membership(members = data_type())),
-    geom = validate_data(x = x, #validate_geometry(),
+      validate_data(x = dataFrame[[colName]],
+        validate_membership(members = data_type())),
+    geom = validate_data(x = dataFrame[[colName]],
+      #validate_geometry(),
       validate_geometry_type(geometryType = 'POINT')),
     validate_data(x = colName, err_column_name)
   )
@@ -296,36 +394,8 @@ validate_points_column <- function(x, colName) {
 #'
 #' @export
 validate_PEM_data <- function(dataFrame, f) {
-  Map(f = f,
-    x = dataFrame,
-    colName = names(dataFrame)
-  )
-}
-#' @rdname validate
-#'
-#' @export
-validate_tracklog_column <- function(x, colName) {
-  switch(colName,
-    id = validate_data(x = x, validate_nothing()),
-    transect_id = validate_data(x = x, validate_nothing()),
-    date_ymd = validate_data(x = x, validate_date()),
-    time_hms = validate_data(x = x, validate_time()),
-    photos = validate_data(x = x, validate_character()),
-    comments = validate_data(x = x, validate_character(),
-      validate_char_length(255)),
-    data_type =
-      validate_data(x = x, validate_membership(members = data_type())),
-    geom = validate_data(x = x, #validate_geometry(),
-      validate_geometry_type(geometryType = 'LINESTRING')),
-    err_column_name(colName)
-  )
-}
-#' @rdname validate
-#'
-#' @export
-err_column_name <- function(colName) {
-  list(status = 0L,
-    message = sprintf('%s is not a valid column name.', colName))
+  stats::setNames(lapply(names(dataFrame), f, dataFrame = dataFrame),
+    names(dataFrame))
 }
 #' @param transectPoints
 #'
@@ -339,6 +409,93 @@ validate_field_points_data <- function(transectPoints) {
     validate_PEM_data,
     f = validate_points_column)
 }
+#' @rdname validate
+#'
+#' @export
+validate_tracklog_column <- function(dataFrame, colName) {
+  switch(colName,
+    id = validate_data(x = dataFrame[[colName]], validate_nothing()),
+    transect_id = validate_data(x = dataFrame[[colName]], validate_nothing()),
+    date_ymd = validate_data(x = dataFrame[[colName]], validate_date()),
+    time_hms = validate_data(x = dataFrame[[colName]], validate_time()),
+    photos = validate_data(x = dataFrame[[colName]], validate_character()),
+    comments = validate_data(x = dataFrame[[colName]], validate_character(),
+      validate_char_length(255)),
+    data_type =
+      validate_data(x = dataFrame[[colName]], validate_membership(members = data_type())),
+    geom = validate_data(x = dataFrame[[colName]], #validate_geometry(),
+      validate_geometry_type(geometryType = 'LINESTRING')),
+    err_column_name(colName)
+  )
+}
+#' @param transectLines
+#'
+#' sf object of tracklog line data
+#'
+#' @rdname validate
+#'
+#' @export
+validate_field_tracklog_data <- function(transectLines) {
+  lapply(split(transectLines, transectLines[['transect_id']]),
+    validate_PEM_data,
+    f = validate_tracklog_column)
+}
+#' @rdname validate
+#'
+#' @export
+err_column_name <- function(colName) {
+  list(status = FALSE,
+    message = sprintf('%s is not a valid column name.', colName))
+}
+#' @param n
+#'
+#' length
+#'
+#' @param distinct
+#'
+#' TRUE/FALSE should test be based on unique values
+#'
+#' @rdname validate
+#'
+#' @export
+validate_length <- function(n, distinct = TRUE) {
+  function(x) {
+    distinctText <- ' '
+    if (isTRUE(distinct)) {
+      x <- unique(x)
+      distinctText <- ' unique '
+    }
+    noItems <- length(x)
+    success <- noItems == n
+    description <- ifelse(success, '',
+      sprintf('Expected %d%svalues in group and %d were found', n, distinctText,
+        noItems))
+    list(status = success, message = description)
+  }
+}
+#' @param transectIds
+#'
+#' vector of transect ids
+#'
+#' @rdname validate
+#'
+#' @export
+validate_sample_pairs <- function(transectIds) {
+  transectParts <- data.table::tstrsplit(transectIds, '_')
+  transectParts <- expand_list(x = transectParts, n = 4, times = length(transectIds))
+  lapply(split(transectParts[[4]], paste(transectParts[[1]], transectParts[[2]],
+    transectParts[[3]], sep = '_')), validate_data,
+    validate_contains(string = 'cLHS', times = 1L, exact = TRUE),
+    validate_length(n = 2, distinct = TRUE))
+}
+expand_list <- function(x, n = 4, times) {
+  if (length(x) > (n - 1)) {
+    x
+  } else {
+    x <- append(x, list(rep(NA, times)))
+    expand_list(x, n = n, times = times)
+  }
+}
 #' Shiny Module to validate and report
 #'
 #' @param id
@@ -348,6 +505,14 @@ validate_field_points_data <- function(transectPoints) {
 #' @param sfObject
 #'
 #' reactive object returning sf data.frame
+#'
+#' @param success
+#'
+#' reactive trigger when data is successfully uploaded
+#'
+#' @param con
+#'
+#' connection to postgres database
 #'
 #' @export
 #'
@@ -362,15 +527,54 @@ validateTableUi <- function(id) {
 #' @export
 #'
 #' @rdname validateTable
-validateTableServer <- function(id, sfObject) {
+validateTableServer <- function(id, sfObject, success, con) {
   shiny::moduleServer(
     id,
     function(input, output, session) {
       validationResults <- shiny::reactive({
-        data.table::rbindlist(
-          lapply(validate_field_points_data(sfObject()),
-            data.table::as.data.table),
-          fill = TRUE, idcol = 'id')
+        shiny::req(sfObject())
+        success$depend()
+        geometryType <- guess_geometry_type(sfObject())
+        stagingTable <- staging_tables()[[geometryType]]
+        sfObject <- tryCatch(
+          filter_in_db(con = con,
+            tableName = stagingTable, sfObject = sfObject()),
+          error = identity)
+        if (inherits(x = sfObject, 'error')) {
+          shiny::showNotification(
+            ui = 'Network connection error: database is unavailable. Please try again.',
+            duration = 5, type = 'error')
+          return(NULL)
+        }
+        if (geometryType %in% 'POINT') {
+          results <- data.table::rbindlist(
+            lapply(validate_field_points_data(sfObject),
+              data.table::as.data.table),
+            fill = TRUE, idcol = 'id')
+          results[['Valid']] <- vapply(
+            split(results[ , c('transect_id', 'date_ymd', 'data_type', 'geom')],
+              results[['id']]), FUN = function(x) {
+              all(x == '')
+            }, FUN.VALUE = logical(1))
+        } else if (geometryType %in% c('LINESTRING', 'MULTILINESTRING')) {
+          results <- data.table::rbindlist(
+            lapply(validate_field_tracklog_data(sfObject),
+              data.table::as.data.table),
+            fill = TRUE, idcol = 'id')
+          results[['Valid']] <- vapply(
+            split(results[ , c('order', 'point_type', 'transect_id',
+              #TODO: 'observer', 'transition', 'struc_stage', 'struc_mod',
+              'date_ymd', 'data_type',
+              'geom')], results[['id']]), FUN = function(x) {
+                all(x == '')
+              }, FUN.VALUE = logical(1))
+        } else {
+          shiny::showNotification(
+            ui = 'Unsupported geometry type or mixed geometry',
+            duration = NULL, type = 'error')
+          return(NULL)
+        }
+        results[order(results[['Valid']], decreasing = TRUE), ]
       })
       selected <- shiny::reactive({
         reactable::getReactableState('dataValidation', 'selected')
@@ -382,27 +586,160 @@ validateTableServer <- function(id, sfObject) {
       output$dataValidation <- reactable::renderReactable({
         shiny::req(validationResults())
         reactable::reactable(validationResults(),
+          columns = list(
+            .selection = reactable::colDef(
+              sticky = 'left',
+              headerClass = 'hide-checkbox',
+              class = ifelse(validationResults()[['Valid']], '', 'hide-checkbox')
+            ),
+            id = reactable::colDef(
+              sticky = 'left',
+              cell = function(value) {
+              shiny::tags$div(class = 'cell-id', value)
+              }
+            ),
+            mapunit1 = reactable::colDef(cell = function(value) {
+              if (value != '') {
+                shiny::tags$div(class = 'cell-warning', value)
+              }
+            }
+            ),
+            mapunit2 = reactable::colDef(cell = function(value) {
+              if (value != '') {
+                shiny::tags$div(class = 'cell-warning', value)
+              }
+            }
+            ),
+            edatope = reactable::colDef(cell = function(value) {
+              if (value != '') {
+                shiny::tags$div(class = 'cell-warning', value)
+              }
+            }
+            ),
+            Valid =  reactable::colDef(cell = function(value) {
+              if (isTRUE(value)) {
+                shiny::tags$div(class = 'cell-success', value)
+              } else {
+                shiny::tags$div(class = 'cell-error', value)
+              }
+              })
+          ),
           defaultColDef = reactable::colDef(
             cell = function(value) {
               if (is.null(value)) {
                 return(NULL)
               }
               if (value != '') {
-                shiny::tags$div(style = 'display: inline-block; padding: 0.125rem 0.75rem;
-          border-radius: 5px; font-weight: 600; font-size: 0.75rem;
-          background: hsl(350, 70%, 90%); color: hsl(350, 45%, 30%);',
-                  value)
+                shiny::tags$div(class = 'cell-error', value)
               }
               #list(background = ifelse(value == '', blue, red))
             }),
           #rowStyle = list(background = "rgba(0, 0, 0, 0.05)"),
+          theme = reactable::reactableTheme(borderWidth = '1px',
+            borderColor = '#00000040'),
           selection = "multiple",
+          pageSizeOptions = c(5, 10, 25, 50),
+          defaultPageSize = 5,
           bordered = TRUE,
-          striped = TRUE,
+          resizable = TRUE,
+          #striped = TRUE,
           compact = TRUE
         )
       })
       return(submitIds)
+    }
+  )
+}
+#' Shiny Module to validate transect pairs
+#'
+#' @param id
+#'
+#' namespace id
+#'
+#' @param sfObject
+#'
+#' reactive object returning sf data.frame
+#'
+#' @param success
+#'
+#' reactive trigger when data is successfully uploaded
+#'
+#' @param con
+#'
+#' connection to postgres database
+#'
+#' @export
+#'
+#' @name validateTable
+#'
+validatePairsUi <- function(id) {
+  ns <- shiny::NS(id)
+  shiny::tags$div(
+    reactable::reactableOutput(ns('pairValidation'))
+  )
+}
+#' @export
+#'
+#' @rdname validateTable
+validatePairsServer <- function(id, sfObject, success, con) {
+  shiny::moduleServer(
+    id,
+    function(input, output, session) {
+      validationResults <- shiny::reactive({
+        shiny::req(sfObject())
+      })
+      output$pairValidation <- reactable::renderReactable({
+        shiny::req(sfObject())
+        success$depend()
+        geometryType <- guess_geometry_type(sfObject())
+        stagingTable <- staging_tables()[[geometryType]]
+        sfObject <- tryCatch(
+          filter_in_db(con = con,
+            tableName = stagingTable, sfObject = sfObject()),
+          error = identity)
+        transectIds <- c(sort(unique(stats::na.omit(sfObject$transect_id))))
+        transectIds <- transectIds[transectIds != 'incidental']
+        validatePairs <- vapply(
+          validate_sample_pairs(transectIds = transectIds), FUN = getElement,
+          FUN.VALUE = character(1), name = 'messages')
+        reactable::reactable(
+          data.table::data.table(id = names(validatePairs),
+            Pairs = validatePairs,
+            Valid = validatePairs == ''),
+          columns = list(
+            id = reactable::colDef(
+              sticky = 'left',
+              cell = function(value) {
+                shiny::tags$div(class = 'cell-id', value)
+              }
+            ),
+            Pairs = reactable::colDef(
+              cell = function(value) {
+                if (is.null(value)) {
+                  return(NULL)
+                }
+                if (value != '') {
+                  shiny::tags$div(class = 'cell-error', value)
+                }
+              }),
+            Valid =  reactable::colDef(cell = function(value) {
+              if (isTRUE(value)) {
+                shiny::tags$div(class = 'cell-success', value)
+              } else {
+                shiny::tags$div(class = 'cell-error', value)
+              }
+            })
+        ),
+        theme = reactable::reactableTheme(borderWidth = '1px',
+          borderColor = '#00000040'),
+        pageSizeOptions = c(5, 10, 25, 50),
+        defaultPageSize = 5,
+        bordered = TRUE,
+        #striped = TRUE,
+        resizable = TRUE,
+        compact = TRUE
+        )
+      })
     }
   )
 }

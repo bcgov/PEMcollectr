@@ -4,7 +4,7 @@
 \alias{card}
 \title{Wrapper to create bootswatch card}
 \usage{
-card(..., title, class = "", style = "")
+card(..., title, class = "", style = "", headerClass = "bg-primary")
 }
 \arguments{
 \item{...}{arguments to pass to card body div}
@@ -14,6 +14,8 @@ card(..., title, class = "", style = "")
 \item{class}{additional classes to add}
 
 \item{style}{additional styles to add to card}
+
+\item{headerClass}{additional classes to add to header only}
 }
 \description{
 Wrapper to create bootswatch card

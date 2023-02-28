@@ -4,17 +4,29 @@
 \alias{validateTable}
 \alias{validateTableUi}
 \alias{validateTableServer}
+\alias{validatePairsUi}
+\alias{validatePairsServer}
 \title{Shiny Module to validate and report}
 \usage{
 validateTableUi(id)
 
-validateTableServer(id, sfObject)
+validateTableServer(id, sfObject, success, con)
+
+validatePairsUi(id)
+
+validatePairsServer(id, sfObject, success, con)
 }
 \arguments{
 \item{id}{namespace id}
 
 \item{sfObject}{reactive object returning sf data.frame}
+
+\item{success}{reactive trigger when data is successfully uploaded}
+
+\item{con}{connection to postgres database}
 }
 \description{
 Shiny Module to validate and report
+
+Shiny Module to validate transect pairs
 }

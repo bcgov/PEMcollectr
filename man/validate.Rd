@@ -16,16 +16,21 @@
 \alias{validate_contains}
 \alias{validate_char_length}
 \alias{validate_transect_id}
+\alias{validate_map_unit_change}
+\alias{validate_map_unit_transition}
 \alias{validate_points_column}
 \alias{validate_PEM_data}
-\alias{validate_tracklog_column}
-\alias{err_column_name}
 \alias{validate_field_points_data}
+\alias{validate_tracklog_column}
+\alias{validate_field_tracklog_data}
+\alias{err_column_name}
+\alias{validate_length}
+\alias{validate_sample_pairs}
 \title{Validation tests for vectors}
 \usage{
 validate_data(x, ...)
 
-validate_membership(members)
+validate_membership(members, optional = FALSE)
 
 validate_character()
 
@@ -35,7 +40,7 @@ validate_integer()
 
 validate_date()
 
-validate_time()
+validate_time(optional = FALSE)
 
 validate_missing()
 
@@ -51,15 +56,25 @@ validate_char_length(maxLength)
 
 validate_transect_id()
 
-validate_points_column(x, colName)
+validate_map_unit_change(mapunit1, mapunit2)
+
+validate_map_unit_transition(mapunit2)
+
+validate_points_column(dataFrame, colName)
 
 validate_PEM_data(dataFrame, f)
 
-validate_tracklog_column(x, colName)
+validate_field_points_data(transectPoints)
+
+validate_tracklog_column(dataFrame, colName)
+
+validate_field_tracklog_data(transectLines)
 
 err_column_name(colName)
 
-validate_field_points_data(transectPoints)
+validate_length(n, distinct = TRUE)
+
+validate_sample_pairs(transectIds)
 }
 \arguments{
 \item{x}{vector of values to test}
@@ -67,6 +82,8 @@ validate_field_points_data(transectPoints)
 \item{...}{validation functions for x. See example for writing custom tests.}
 
 \item{members}{vector of values to test membership}
+
+\item{optional}{TRUE/FALSE for whether missing values are acceptable}
 
 \item{geometryType}{geometry type to validate}
 
@@ -78,13 +95,25 @@ validate_field_points_data(transectPoints)
 
 \item{maxLength}{integer maximum allowable character length}
 
-\item{colName}{character vector size 1 of column to validate}
+\item{mapunit1}{first map unit}
+
+\item{mapunit2}{second map unit}
 
 \item{dataFrame}{data.frame to validate}
+
+\item{colName}{character vector size 1 of column to validate}
 
 \item{f}{a column validation function for PEM data}
 
 \item{transectPoints}{sf object with transect field points data}
+
+\item{transectLines}{sf object of tracklog line data}
+
+\item{n}{length}
+
+\item{distinct}{TRUE/FALSE should test be based on unique values}
+
+\item{transectIds}{vector of transect ids}
 }
 \value{
 list with status of pass/fail and message of error

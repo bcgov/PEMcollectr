@@ -99,34 +99,58 @@ dbWriteServer <- function(id, sfObject, tableName, con) {
     id,
     function(input, output, session) {
       ns <- session$ns
+      success <- make_reactive_trigger()
       output$submitIds <- shiny::renderUI({
-        shiny::req(nrow(sfObject()) > 0)
-        shiny::tags$div(
-          shiny::tags$h6('Upload datasets: '),
-          shiny::tags$ul(lapply(unique(sfObject()[['transect_id']]),
-            shiny::tags$li))
-        )
+        shiny::req(sfObject())
+        if (nrow(sfObject()) < 1) {
+          shiny::tags$em('Select rows in Validation Results to submit')
+        } else {
+          shiny::tags$div(
+            shiny::tags$h6('Upload datasets: '),
+            shiny::tags$ul(lapply(unique(sfObject()[['transect_id']]),
+              shiny::tags$li))
+          )
+        }
       })
       output$submitUi <- shiny::renderUI({
         shiny::req(nrow(sfObject()) > 0)
-        shiny::actionButton(inputId = ns('submit'), label = 'Submit')
+        shiny::actionButton(inputId = ns('submit'), label = 'Submit',
+          class = 'btn-primary btn-sm')
       })
       shiny::observeEvent(input$submit, {
         shiny::req(nrow(sfObject()) > 0)
+        sfObject <- sfObject()
+        geometryType <- guess_geometry_type(sfObject = sfObject)
+        if (geometryType == 'POINT') {
+          # if mapunit is not valid, then it needs review
+          needsReview <- !vapply(lapply(sfObject[['mapunit1']],
+            validate_membership(members = c(map_unit_veg(), map_unit_non_veg()))
+          ), FUN = getElement, FUN.VALUE = logical(1), name = 'status')
+          sfObject[['review']] <- needsReview
+        }
         trySubmit <- tryCatch(append_db(con = con, x = sfObject,
-          tableName = tableName),
+          tableName = tableName()),
           error = identity)
         if (inherits(x = trySubmit, 'error')) {
           shiny::showNotification(ui = trySubmit$message, type = 'error')
+        } else {
+          shiny::showNotification(ui = 'Data uploaded', type = 'default')
+          success$trigger()
         }
       })
+      return(success)
     })
 }
-
-check_in_db <- function(con, x, tableName) {
+is_in_db <- function(con, transectIds, tableName) {
   inDb <- DBI::dbGetQuery(con,
-    sprintf('SELECT transect_id FROM %s WHERE transect_id in (%s)',
-      tableName, paste0("'", x, "'"), collapse = ',')
+    sprintf('SELECT DISTINCT transect_id FROM %s', tableName)
   )[['transect_id']]
-  !x %in% inDb
+  transectIds %in% inDb
 }
+filter_in_db <- function(con, tableName, sfObject) {
+  dropTransectIds <- sfObject[['transect_id']][
+    is_in_db(con = con, transectIds = sfObject[['transect_id']],
+      tableName = tableName)]
+  sfObject[!sfObject[['transect_id']] %in% dropTransectIds, ]
+}
+

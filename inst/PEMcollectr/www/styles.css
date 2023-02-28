@@ -1,0 +1,53 @@
+.cell-error {
+  display: inline-block;
+  padding: 0.125rem 0.75rem;
+  border-radius: 5px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  background: #f5191c40;
+  color: #f5191c;
+}
+
+.cell-warning {
+  display: inline-block;
+  padding: 0.125rem 0.75rem;
+  border-radius: 5px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  background: #eacb2b40;
+  color:#eacb2b;
+}
+
+.cell-success {
+  display: inline-block;
+  padding: 0.125rem 0.75rem;
+  border-radius: 5px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  background: #3b99b140;
+  color: #3b99b1;
+}
+
+.cell-id {
+  display: inline-block;
+  padding: 0.125rem 0.75rem;
+  border-radius: 5px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  background: slategrey;
+  color: white;
+}
+
+.btn-file, .btn-file:hover {
+  background-color: #003366 !important;
+  color: white;
+  margin-right: 1rem;
+}
+
+.hide-checkbox {
+  pointer-events: none;
+}
+
+.hide-checkbox input[type='checkbox'] {
+  display: none;
+}

@@ -2,15 +2,19 @@
 % Please edit documentation in R/data.R
 \name{PEMData}
 \alias{PEMData}
-\alias{map_unit}
+\alias{map_unit_non_veg}
 \alias{point_type}
 \alias{transition}
 \alias{struc_mod}
 \alias{data_type}
-\alias{struc_change}
+\alias{struc_stage}
+\alias{edatope}
+\alias{transect_location}
+\alias{map_unit_veg}
+\alias{staging_tables}
 \title{Functions to produce a list of categories for PEM}
 \usage{
-map_unit()
+map_unit_non_veg()
 
 point_type()
 
@@ -20,7 +24,15 @@ struc_mod()
 
 data_type()
 
-struc_change()
+struc_stage()
+
+edatope()
+
+transect_location()
+
+map_unit_veg()
+
+staging_tables()
 }
 \value{
 named list with code as name and description as value
