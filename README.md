@@ -25,5 +25,5 @@ PEMcollectr::run_PEM_app(local = TRUE)
 
 or run `devtools::load` (ctrl+shift+l in Rstudio), open the 
 inst/PEMcollectR/ui.R or inst/PEMcollectR/ui.R and click Run App.
-=======
+
 
