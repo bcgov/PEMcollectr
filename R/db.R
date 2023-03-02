@@ -61,7 +61,7 @@ append_db <- function(con, x, tableName) {
   sf::st_write(obj = x, dsn = con, tableName, append = TRUE)
 }
 
-#' Title
+#' Databse upload module
 #'
 #' @param id
 #'
@@ -154,3 +154,62 @@ filter_in_db <- function(con, tableName, sfObject) {
   sfObject[!sfObject[['transect_id']] %in% dropTransectIds, ]
 }
 
+#' PEM database operations
+#'
+#' @param con
+#'
+#' connection to PEM database
+#'
+#' @param transectIds
+#'
+#' transect ids
+#'
+#' @export
+#'
+#' @name dbOperations
+transfer_field_data_points <- function(con, transectIds) {
+  msg <- tryCatch({
+    DBI::dbBegin(conn = con)
+    DBI::dbExecute(con,
+      'CREATE TEMPORARY TABLE validatedFieldPoints (
+      transect_id VARCHAR(255)
+      )
+      ON COMMIT DROP')
+    sql <- DBI::sqlAppendTable(con = con,
+      table = DBI::SQL('validatedFieldPoints'), values =
+        data.frame(transect_id = transectIds), row.names = FALSE)
+    DBI::dbExecute(con, sql)
+    DBI::dbExecute(con,
+      'INSERT INTO transects.field_data_points
+      SELECT fdp.* FROM staging.field_data_points fdp
+      JOIN validatedFieldPoints as vi on fdp.transect_id = vi.transect_id')
+    DBI::dbCommit(con)
+  }, error = function(e) {
+    DBI::dbRollback(con)
+    e
+    })
+  msg
+}
+transfer_field_tracklog <- function(con, transectIds) {
+  msg <- tryCatch({
+    DBI::dbBegin(conn = con)
+    DBI::dbExecute(con,
+      'CREATE TEMPORARY TABLE validatedTracklog (
+      transect_id VARCHAR(255)
+      )
+      ON COMMIT DROP')
+    sql <- DBI::sqlAppendTable(con = con,
+      table = DBI::SQL('validatedTracklog'), values =
+        data.frame(transect_id = transectIds), row.names = FALSE)
+    DBI::dbExecute(con, sql)
+    DBI::dbExecute(con,
+      'INSERT INTO transects.field_tracklog
+      SELECT ft.* FROM staging.field_tracklog ft
+      JOIN validatedTracklog as vi on ft.transect_id = vi.transect_id')
+    DBI::dbCommit(con)
+  }, error = function(e) {
+    DBI::dbRollback(con)
+    e
+  })
+  msg
+}

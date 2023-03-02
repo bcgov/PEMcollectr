@@ -51,3 +51,7 @@
 .hide-checkbox input[type='checkbox'] {
   display: none;
 }
+
+.leaflet-container {
+  font-size: inherit;
+}

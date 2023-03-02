@@ -90,3 +90,65 @@ bcgov_theme <- bslib::bs_add_rules(
   };
   ')
 
+#' Switch Input Control
+#'
+#' @param inputId
+#'
+#' The input slot that will be used to access the value.
+#'
+#' @param label
+#'
+#' Display label for the control, or NULL for no label.
+#'
+#' @param value
+#'
+#' Initial value (TRUE or FALSE).
+#'
+#' @param disabled
+#'
+#' disable user input
+#'
+#' @param width
+#'
+#' The width of the input, e.g. '400px', or '100%'; see validateCssUnit().
+#'
+#' @param session
+#'
+#' The session object passed to function given to shinyServer. Default is
+#' getDefaultReactiveDomain().
+#'
+#' @return
+#'
+#' A checkbox control that can be added to a UI definition.
+#'
+#' @export
+#'
+switchInput <- function(inputId, label, value = FALSE, disabled = FALSE,
+  width = NULL) {
+  value <- shiny::restoreInput(id = inputId, default = value)
+  inputTag <- shiny::tags$input(id = inputId, type = "checkbox",
+    role = "switch", class = "form-check-input", style='margin-right: 1rem;')
+  if (!is.null(value) && value) {
+    inputTag$attribs$checked <- NA
+  }
+  if (!is.null(disabled) && disabled) {
+    inputTag$attribs$disabled <- NA
+  }
+  shiny::tags$div(
+    class = "form-group shiny-input-container",
+    style = sprintf('width: %s', shiny::validateCssUnit(width)),
+    shiny::tags$div(
+      class = "from-check form-switch",
+      inputTag,
+      shiny::tags$label(label, class = "form-check-label")
+    ),
+  )
+}
+#' @export
+#'
+#' @rdname switchInput
+updateSwitchInput <- shiny::updateCheckboxInput
+
+zissou <- function() {
+  c('#3b99b1', '#56b29e', '#9fc095', '#eacb2b', '#e8a419', '#e87700', '#f5191c')
+}

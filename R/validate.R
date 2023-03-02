@@ -562,7 +562,7 @@ validateTableServer <- function(id, sfObject, success, con) {
               data.table::as.data.table),
             fill = TRUE, idcol = 'id')
           results[['Valid']] <- vapply(
-            split(results[ , c('order', 'point_type', 'transect_id',
+            split(results[ , c('transect_id',
               #TODO: 'observer', 'transition', 'struc_stage', 'struc_mod',
               'date_ymd', 'data_type',
               'geom')], results[['id']]), FUN = function(x) {

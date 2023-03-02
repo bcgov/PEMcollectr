@@ -1,5 +1,19 @@
 # PEMcollectr 0.0.1
 
+* added ability to display all correctly uploaded track logs
+with on/off option.
+
+* added ability to display all correctly uploaded training points 
+with on/off option.
+
+* added ability to display full sample plan (.gpkg) with on/off option.
+
+* added map with basemap
+
+* added transfer data functions for staging to transects
+
+* updated psql schema
+
 * added check for transect_id column before validation
 
 * reactive trigger added to keep data in sync with database
@@ -19,8 +33,6 @@
 * selections only show for validated results
 
 * transect id check added
-
-* transition validation now allows missing, 
 
 * soft checks are now in yellow as warnings
 

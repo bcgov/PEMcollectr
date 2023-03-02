@@ -24,6 +24,14 @@ shiny::navbarPage(
       )
     )
   ),
-  shiny::tabPanel(title = 'Map')
+  shiny::tabPanel(title = 'Map',
+    shiny::fluidRow(
+      shiny::column(width = 12,
+        card(title = shiny::tags$strong('Data Collection Map'),
+          mapUi('dcMap'),
+          class = 'bg-secondary mb-3')
+        )
+    )
+  )
 )
 

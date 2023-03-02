@@ -15,7 +15,9 @@ Imports:
     DBI,
     pool,
     data.table,
-    reactable
+    reactable,
+    leaflet,
+    leaflegend
 Suggests: 
     knitr,
     rmarkdown,

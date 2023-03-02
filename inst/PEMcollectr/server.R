@@ -11,4 +11,5 @@ function(input, output, session) {
     con = con)
   validatePairsServer('validatePairs', sfObject = sfObject, success = dbWrite,
     con = con)
+  mapServer('dcMap', con = con)
 }
