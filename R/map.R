@@ -90,6 +90,8 @@ mapServer <- function(id, con) {
           leaflet::leafletProxy(mapId = 'baseMap', data = samplePlan()) |>
             leaflet::addPolylines(color='black', weight = 2, opacity = 1,
               group = 'samplePlan', layerId = ~transect_id)
+          updateSwitchInput(session = session,
+            inputId = 'toggleComplete', value = FALSE)
         } else {
           leaflet::leafletProxy(mapId = 'baseMap') |>
             leaflet::clearGroup(group = 'samplePlan')
@@ -117,6 +119,30 @@ mapServer <- function(id, con) {
         } else {
           leaflet::leafletProxy(mapId = 'baseMap') |>
             leaflet::clearGroup(group = 'tracklog')
+        }
+      })
+      shiny::observeEvent(input$toggleComplete, {
+        toggle <- input$toggleComplete
+        shiny::req(!is.null(toggle))
+        transectIds <- c(sort(unique(pointData()[['transect_id']])))
+        transectIds <- transectIds[transectIds != 'incidental']
+        validatePairs <- vapply(
+          validate_sample_pairs(transectIds = transectIds), FUN = getElement,
+          FUN.VALUE = character(1), name = 'messages')
+        validatePairs <- validatePairs[validatePairs == '']
+        validatePairs <- expand.grid(x = names(validatePairs),
+          y = transect_location())
+        validatePairs <- data.frame(transect_id = sprintf('%s_%s',
+          validatePairs[['x']], validatePairs[['y']]))
+        completed <- merge(samplePlan(), validatePairs, by = 'transect_id')
+        if (isTRUE(toggle)) {
+          leaflet::leafletProxy(mapId = 'baseMap', data = completed) |>
+            leaflet::addPolylines(color= zissou()[7], weight = 2, opacity = 1,
+              group = 'samplePlan', layerId = ~transect_id)
+        } else {
+          leaflet::leafletProxy(mapId = 'baseMap', data = completed) |>
+            leaflet::addPolylines(color= 'black', weight = 2, opacity = 1,
+              group = 'samplePlan', layerId = ~transect_id)
         }
       })
 
