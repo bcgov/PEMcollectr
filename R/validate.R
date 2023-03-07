@@ -271,7 +271,6 @@ validate_transect_id <- function() {
       members = transect_location())(transectParts[['part4']])
     isValidSegments <- validate_float()(as.numeric(transectParts[['part2']]))
     isValidTotal <- validate_integer()(as.integer(transectParts[['part3']]))
-    #validPattern <- '[A-Z]{3,4}[a-z]{2}[0-9]*\\_[0-9]{1}\\.[0-9]{1}_[0-9]+\\_c*[A-Za-z]+'
     validResults <- list(isValidMapUnit, isValidTransectLocation, isValidSegments,
       isValidTotal)
     success <- all(vapply(validResults, FUN = getElement,
@@ -393,7 +392,10 @@ validate_points_column <- function(dataFrame, colName) {
 #' @rdname validate
 #'
 #' @export
-validate_PEM_data <- function(dataFrame, f) {
+validate_PEM_data <- function(dataFrame, f, progress, n = 1) {
+  if (!missing(progress)) {
+    progress$inc(1 / n)
+  }
   stats::setNames(lapply(names(dataFrame), f, dataFrame = dataFrame),
     names(dataFrame))
 }
@@ -404,10 +406,18 @@ validate_PEM_data <- function(dataFrame, f) {
 #' @rdname validate
 #'
 #' @export
-validate_field_points_data <- function(transectPoints) {
-  lapply(split(transectPoints, transectPoints[['transect_id']]),
-    validate_PEM_data,
-    f = validate_points_column)
+validate_field_points_data <- function(transectPoints, progress) {
+  transectPoints <- split(transectPoints, transectPoints[['transect_id']])
+  if (!missing(progress)) {
+    lapply(transectPoints,
+      validate_PEM_data,
+      f = validate_points_column,
+      progress = progress, n = length(transectPoints))
+  } else {
+    lapply(transectPoints,
+      validate_PEM_data,
+      f = validate_points_column)
+  }
 }
 #' @rdname validate
 #'
@@ -435,8 +445,12 @@ validate_tracklog_column <- function(dataFrame, colName) {
 #' @rdname validate
 #'
 #' @export
-validate_field_tracklog_data <- function(transectLines) {
-  lapply(split(transectLines, transectLines[['transect_id']]),
+validate_field_tracklog_data <- function(transectLines, progress, n = 1) {
+  transectLines <- split(transectLines, transectLines[['transect_id']])
+  if (!missing(progress)) {
+    progress$inc(1 / n)
+  }
+  lapply(transectLines,
     validate_PEM_data,
     f = validate_tracklog_column)
 }
@@ -482,7 +496,8 @@ validate_length <- function(n, distinct = TRUE) {
 #' @export
 validate_sample_pairs <- function(transectIds) {
   transectParts <- data.table::tstrsplit(transectIds, '_')
-  transectParts <- expand_list(x = transectParts, n = 4, times = length(transectIds))
+  transectParts <- expand_list(x = transectParts, n = 4,
+    times = length(transectIds))
   lapply(split(transectParts[[4]], paste(transectParts[[1]], transectParts[[2]],
     transectParts[[3]], sep = '_')), validate_data,
     validate_contains(string = 'cLHS', times = 1L, exact = TRUE),
@@ -521,6 +536,7 @@ expand_list <- function(x, n = 4, times) {
 validateTableUi <- function(id) {
   ns <- shiny::NS(id)
   shiny::tags$div(
+    shiny::uiOutput(ns('dbFilterUi')),
     reactable::reactableOutput(ns('dataValidation'))
     )
 }
@@ -531,41 +547,73 @@ validateTableServer <- function(id, sfObject, success, con) {
   shiny::moduleServer(
     id,
     function(input, output, session) {
+      dataInDb <- shiny::reactive({
+        shiny::req(sfObject())
+        geometryType <- guess_geometry_type(sfObject())
+        stagingTable <- staging_tables()[[geometryType]]
+        transectsTable <- transects_tables()[[geometryType]]
+        tryCatch(is_in_db(con = con, transectIds =
+            sfObject()[['transect_id']], observers = sfObject()[['observer']],
+          stagingTable = stagingTable, transectsTable = transectsTable),
+          error = identity)
+      })
+      output$dbFilterUi <- shiny::renderUI({
+        shiny::req(!inherits(dataInDb(), 'error'))
+        uniqueIds <- unique(as.data.frame(sfObject()[dataInDb(), ])[,
+          c('transect_id', 'observer')])
+        if (nrow(uniqueIds) < 1) {
+          return(NULL)
+        }
+        shiny::tags$div(class='mb-2',
+          shiny::tags$h6('Data already submitted for (transect_id-observer):'),
+          paste(sprintf('%s-%s', uniqueIds[[1]], uniqueIds[[2]]),
+            collapse = '; ')
+        )
+      })
       validationResults <- shiny::reactive({
         shiny::req(sfObject())
         success$depend()
         geometryType <- guess_geometry_type(sfObject())
-        stagingTable <- staging_tables()[[geometryType]]
-        sfObject <- tryCatch(
-          filter_in_db(con = con,
-            tableName = stagingTable, sfObject = sfObject()),
-          error = identity)
-        if (inherits(x = sfObject, 'error')) {
+        #stagingTable <- staging_tables()[[geometryType]]
+        #transectsTable <- transects_tables()[[geometryType]]
+        if (inherits(x = dataInDb(), 'error')) {
           shiny::showNotification(
             ui = 'Network connection error: database is unavailable. Please try again.',
             duration = 5, type = 'error')
           return(NULL)
         }
+        sfObject <- sfObject()[!dataInDb(), ]
+        shiny::req(nrow(sfObject) > 0)
         if (geometryType %in% 'POINT') {
+          progress <- shiny::Progress$new(session)
+          on.exit(progress$close())
+          progress$set(value = .01, message = 'Validation in progress...')
           results <- data.table::rbindlist(
-            lapply(validate_field_points_data(sfObject),
+            lapply(validate_field_points_data(sfObject, progress = progress),
               data.table::as.data.table),
             fill = TRUE, idcol = 'id')
+          hardConstraints <- c('transect_id', 'point_type',
+            #'transition', 'struc_mod', 'struc_stage', 'observer',
+            'date_ymd', 'data_type',
+            'geom')
           results[['Valid']] <- vapply(
-            split(results[ , c('transect_id', 'date_ymd', 'data_type', 'geom')],
+            split(results[ , hardConstraints],
               results[['id']]), FUN = function(x) {
               all(x == '')
             }, FUN.VALUE = logical(1))
         } else if (geometryType %in% c('LINESTRING', 'MULTILINESTRING')) {
+          progress <- shiny::Progress$new(session)
+          on.exit(progress$close())
+          progress$set(value = .01, message = 'Validation in progress...')
           results <- data.table::rbindlist(
-            lapply(validate_field_tracklog_data(sfObject),
+            lapply(validate_field_tracklog_data(sfObject, progress = progress),
               data.table::as.data.table),
             fill = TRUE, idcol = 'id')
+          hardConstraints <- c('transect_id', 'date_ymd', 'data_type',
+            'geom')
           results[['Valid']] <- vapply(
-            split(results[ , c('transect_id',
-              #TODO: 'observer', 'transition', 'struc_stage', 'struc_mod',
-              'date_ymd', 'data_type',
-              'geom')], results[['id']]), FUN = function(x) {
+            split(results[ , hardConstraints], results[['id']]),
+            FUN = function(x) {
                 all(x == '')
               }, FUN.VALUE = logical(1))
         } else {
@@ -611,6 +659,12 @@ validateTableServer <- function(id, sfObject, success, con) {
             }
             ),
             edatope = reactable::colDef(cell = function(value) {
+              if (value != '') {
+                shiny::tags$div(class = 'cell-warning', value)
+              }
+            }
+            ),
+            time_hms = reactable::colDef(cell = function(value) {
               if (value != '') {
                 shiny::tags$div(class = 'cell-warning', value)
               }
@@ -693,12 +747,13 @@ validatePairsServer <- function(id, sfObject, success, con) {
         success$depend()
         geometryType <- guess_geometry_type(sfObject())
         stagingTable <- staging_tables()[[geometryType]]
-        sfObject <- tryCatch(
-          filter_in_db(con = con,
-            tableName = stagingTable, sfObject = sfObject()),
-          error = identity)
-        transectIds <- c(sort(unique(stats::na.omit(sfObject$transect_id))))
+        transectsTable <- transects_tables()[[geometryType]]
+        dbTransectIds <- select_distinct_transect_ids(con= con,
+          stagingTable = stagingTable, transectsTable = transectsTable)
+        transectIds <- c(sort(unique(stats::na.omit(sfObject()[['transect_id']])
+          )))
         transectIds <- transectIds[transectIds != 'incidental']
+        transectIds <- unique(c(transectIds, dbTransectIds))
         validatePairs <- vapply(
           validate_sample_pairs(transectIds = transectIds), FUN = getElement,
           FUN.VALUE = character(1), name = 'messages')

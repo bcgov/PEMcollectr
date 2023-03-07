@@ -28,9 +28,7 @@ mapServer <- function(id, con) {
         color = zissou()[1], opacity = .5)
       samplePlan <- shiny::reactive({
         tryCatch(
-          sf::st_transform(
             sf::st_read(dsn = con, layer = DBI::SQL('transects.sample_plan')),
-            crs = 4326),
           error = identity)
       })
       pointData <- shiny::reactive({
@@ -47,6 +45,14 @@ mapServer <- function(id, con) {
             sf::st_read(dsn = con,
               layer = DBI::SQL('transects.field_tracklog')),
             crs = 4326)),
+          error = identity)
+      })
+      aoi <- shiny::reactive({
+        tryCatch(
+          sf::st_transform(
+            sf::st_read(dsn = con,
+              layer = DBI::SQL('transects.aoi')),
+            crs = 4326),
           error = identity)
       })
       output$baseMap <- leaflet::renderLeaflet({
@@ -79,8 +85,16 @@ mapServer <- function(id, con) {
                     width = 20, opacity = 1, fillColor = 'transparent')),
                 'Completed'), value = FALSE),
             class = 'bg-secondary mb-3', style='width: 300px'), className = '',
-            position = 'topright')
-        init(TRUE)
+            position = 'topright') |>
+          leaflet::addPolylines(data = aoi(), popup = ~name,
+            color = 'purple', opacity = 1, weight = 3) |>
+          leaflet::addLabelOnlyMarkers(data = find_boundary_point(aoi()),
+            options = leaflet::markerOptions(zIndexOffset = 10),
+            label = ~name, labelOptions = leaflet::labelOptions(textsize = '12px',
+              offset = c(0, -10),
+              noHide = TRUE, textOnly = TRUE, direction = 'center',
+              style=list('color' =  'purple', 'font-weight' = 'bold')),
+            layerId = ~name)
         map
       })
       shiny::observeEvent(input$toggleSamplePlan, {
@@ -147,4 +161,20 @@ mapServer <- function(id, con) {
       })
 
     })
+}
+
+find_boundary_point <- function(sfObject, coord = c('lat', 'lng'),
+  type = c('min', 'max')) {
+  coord <- match.arg(coord)
+  coord <- ifelse(coord == 'lat', 2, 1)
+  type <- match.arg(type)
+  decreasing <- type == 'max'
+  geometry <- lapply(sf::st_geometry(sfObject), as.matrix)
+  minCoord <- lapply(geometry, function(x, col) {
+    sf::st_point(x[order(x[,coord], decreasing = decreasing), ][1,])
+  }, col = coord)
+  sf::st_as_sf(
+    cbind(sf::st_drop_geometry(sfObject), geom = sf::st_as_sfc(minCoord)),
+    crs = sf::st_crs(sfObject)
+  )
 }

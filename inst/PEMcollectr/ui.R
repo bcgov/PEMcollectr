@@ -1,7 +1,8 @@
 shiny::navbarPage(
   windowTitle = 'PEMcollectr',
   title = shiny::tags$img(src = 'gov_bc_logo.svg', height = 35),
-  header = shiny::tags$link(rel = 'stylesheet', type = 'text/css', href = 'styles.css'),
+  header = shiny::tags$link(rel = 'stylesheet', type = 'text/css',
+    href = 'styles.css'),
   theme = bcgov_theme,
   inverse = TRUE,
   shiny::tabPanel(title = 'Data Submission',
@@ -9,7 +10,8 @@ shiny::navbarPage(
       shiny::column(width = 3,
         card(title = shiny::tags$strong('Data Validation'),
           geomUploadUi('geomUpload'),
-          shiny::tags$div(style = 'height: 0px; margin-top: 15px; margin-bottom: 5px;'),
+          shiny::tags$div(style =
+              'height: 0px; margin-top: 15px; margin-bottom: 5px;'),
           dbWriteUi('dbWrite'),
           class = 'bg-secondary mb-3'),
         card(title = shiny::tags$strong('Transect Pair Validation'),

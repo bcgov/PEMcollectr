@@ -4982,3 +4982,13 @@ staging_tables <- function() {
     'MULTILINESTRING' = DBI::SQL('staging.field_tracklog')
   )
 }
+#' @export
+#'
+#' @rdname PEMData
+transects_tables <- function() {
+  list(
+    'POINT' = DBI::SQL('transects.field_data_points'),
+    'LINESTRING' = DBI::SQL('transects.field_tracklog'),
+    'MULTILINESTRING' = DBI::SQL('transects.field_tracklog')
+  )
+}

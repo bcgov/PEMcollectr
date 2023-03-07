@@ -122,6 +122,11 @@ dbWriteServer <- function(id, sfObject, tableName, con) {
         sfObject <- sfObject()
         geometryType <- guess_geometry_type(sfObject = sfObject)
         if (geometryType == 'POINT') {
+          # rename incidental transect_id
+          isIncidental <- sfObject[['transect_id']] %in% 'incidental'
+          sfObject[['transect_id']][isIncidental] <- apply(
+            X = sf::st_coordinates(sfObject[isIncidental, ]), MARGIN = 1,
+            FUN = paste, collapse = ',')
           # if mapunit is not valid, then it needs review
           needsReview <- !vapply(lapply(sfObject[['mapunit1']],
             validate_membership(members = c(map_unit_veg(), map_unit_non_veg()))
@@ -141,17 +146,23 @@ dbWriteServer <- function(id, sfObject, tableName, con) {
       return(success)
     })
 }
-is_in_db <- function(con, transectIds, tableName) {
+is_in_db <- function(con, transectIds, observers, stagingTable,
+  transectsTable) {
   inDb <- DBI::dbGetQuery(con,
-    sprintf('SELECT DISTINCT transect_id FROM %s', tableName)
-  )[['transect_id']]
-  transectIds %in% inDb
+    sprintf('SELECT DISTINCT t.transect_id, observer
+      FROM (SELECT transect_id, observer FROM %s UNION
+      select transect_id, observer FROM %s) as t',
+      stagingTable, transectsTable)
+  )
+  paste(transectIds, observers, sep = '-') %in%
+    paste(inDb$transect_id, inDb$observer, sep = '-')
 }
-filter_in_db <- function(con, tableName, sfObject) {
-  dropTransectIds <- sfObject[['transect_id']][
-    is_in_db(con = con, transectIds = sfObject[['transect_id']],
-      tableName = tableName)]
-  sfObject[!sfObject[['transect_id']] %in% dropTransectIds, ]
+select_distinct_transect_ids <- function(con, stagingTable, transectsTable) {
+  DBI::dbGetQuery(con,
+    sprintf('SELECT DISTINCT t.transect_id
+      FROM (SELECT transect_id FROM %s UNION
+      select transect_id FROM %s) as t', stagingTable, transectsTable)
+  )[['transect_id']]
 }
 
 #' PEM database operations
@@ -183,6 +194,10 @@ transfer_field_data_points <- function(con, transectIds) {
       'INSERT INTO transects.field_data_points
       SELECT fdp.* FROM staging.field_data_points fdp
       JOIN validatedFieldPoints as vi on fdp.transect_id = vi.transect_id')
+    DBI::dbExecute(con,
+      'DELETE FROM staging.field_data_points as s
+      USING transects.field_data_points t
+      WHERE s.id = t.id')
     DBI::dbCommit(con)
   }, error = function(e) {
     DBI::dbRollback(con)
@@ -190,6 +205,9 @@ transfer_field_data_points <- function(con, transectIds) {
     })
   msg
 }
+#' @export
+#'
+#' @name dbOperations
 transfer_field_tracklog <- function(con, transectIds) {
   msg <- tryCatch({
     DBI::dbBegin(conn = con)
@@ -206,6 +224,10 @@ transfer_field_tracklog <- function(con, transectIds) {
       'INSERT INTO transects.field_tracklog
       SELECT ft.* FROM staging.field_tracklog ft
       JOIN validatedTracklog as vi on ft.transect_id = vi.transect_id')
+    DBI::dbExecute(con,
+      'DELETE FROM staging.field_tracklog as s
+      USING transects.field_tracklog t
+      WHERE s.id = t.id')
     DBI::dbCommit(con)
   }, error = function(e) {
     DBI::dbRollback(con)
