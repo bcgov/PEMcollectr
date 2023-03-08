@@ -8,12 +8,14 @@
 \usage{
 transfer_field_data_points(con, transectIds)
 
-transfer_field_tracklog(con, transectIds)
+transfer_field_tracklog(con, stagedIds)
 }
 \arguments{
 \item{con}{connection to PEM database}
 
 \item{transectIds}{transect ids}
+
+\item{stagedIds}{integer id of staged tracklogs}
 }
 \description{
 PEM database operations

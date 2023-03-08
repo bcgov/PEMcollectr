@@ -135,17 +135,15 @@ mapServer <- function(id, con, sfObject, success) {
             leaflet::clearGroup(group = 'samplePlan')
         }
       })
-      # completed transects
+      # sample plan
       samplePlan <- shiny::reactive({
         tryCatch(
           sf::st_read(dsn = con, layer = DBI::SQL('transects.sample_plan')),
           error = identity)
       })
-      shiny::observeEvent(input$toggleComplete, {
-        toggle <- input$toggleComplete
-        shiny::req(!is.null(toggle))
-        transectIds <- c(sort(unique(pointData()[['transect_id']])))
-        transectIds <- transectIds[transectIds != 'incidental']
+      completedSamplePlan <- shiny::reactive({
+        transectIds <- sort(unique(pointData()[['transect_id']][
+          pointData()[['data_type']] != data_type()['incidental sampling']]))
         validatePairs <- vapply(
           validate_sample_pairs(transectIds = transectIds), FUN = getElement,
           FUN.VALUE = character(1), name = 'messages')
@@ -154,15 +152,57 @@ mapServer <- function(id, con, sfObject, success) {
           y = transect_location())
         validatePairs <- data.frame(transect_id = sprintf('%s_%s',
           validatePairs[['x']], validatePairs[['y']]))
-        completed <- merge(samplePlan(), validatePairs, by = 'transect_id')
+        merge(samplePlan(), validatePairs, by = 'transect_id')
+      })
+      pendingSamplePlan <- shiny::reactive({
+        transectIds <- sort(unique(stagedPointData()[['transect_id']][
+          pointData()[['data_type']] != data_type()['incidental sampling']]))
+        pattern <- sprintf('_(%s)$', paste(transect_location(), collapse = '|'))
+        incomplete <- transectIds[!sub(pattern,'', transectIds) %in%
+          unique(sub(pattern,'', completedSamplePlan()[['transect_id']]))]
+        partials <- unique(pointData()[['transect_id']][
+          sub(pattern, '', pointData()[['transect_id']])
+          %in% sub(pattern, '', incomplete)])
+        validatePairs <- vapply(
+          validate_sample_pairs(transectIds = c(incomplete, partials)),
+          FUN = getElement,
+          FUN.VALUE = character(1), name = 'messages')
+        validatePairs <- validatePairs[validatePairs == '']
+        validatePairs <- expand.grid(x = names(validatePairs),
+          y = transect_location())
+        validatePairs <- data.frame(transect_id = sprintf('%s_%s',
+          validatePairs[['x']], validatePairs[['y']]))
+        merge(samplePlan(), validatePairs, by = 'transect_id')
+      })
+      shiny::observeEvent(input$togglePending, {
+        toggle <- input$togglePending
+        shiny::req(!is.null(toggle))
         if (isTRUE(toggle)) {
-          leaflet::leafletProxy(mapId = 'baseMap', data = completed) |>
-            leaflet::addPolylines(color= zissou()[7], weight = 2, opacity = 1,
+          leaflet::leafletProxy(mapId = 'baseMap',
+            data = pendingSamplePlan()) |>
+            leaflet::addPolylines(color= zissou()[6], weight = 2, opacity = 1,
               group = 'samplePlan', layerId = ~transect_id)
         } else {
-          leaflet::leafletProxy(mapId = 'baseMap', data = completed) |>
+          leaflet::leafletProxy(mapId = 'baseMap',
+            data = pendingSamplePlan()) |>
             leaflet::addPolylines(color= 'black', weight = 2, opacity = 1,
               group = 'samplePlan', layerId = ~transect_id,
+              popup = ~transect_id)
+        }
+      })
+      shiny::observeEvent(input$toggleComplete, {
+        toggle <- input$toggleComplete
+        shiny::req(!is.null(toggle), completedSamplePlan())
+        if (isTRUE(toggle)) {
+          leaflet::leafletProxy(mapId = 'baseMap',
+            data = completedSamplePlan()) |>
+            leaflet::addPolylines(color= zissou()[1], weight = 2, opacity = 1,
+              group = 'completed', layerId = ~transect_id)
+        } else {
+          leaflet::leafletProxy(mapId = 'baseMap',
+            data = completedSamplePlan()) |>
+            leaflet::addPolylines(color= 'black', weight = 2, opacity = 1,
+              group = 'completed', layerId = ~transect_id,
               popup = ~transect_id)
         }
       })
@@ -203,7 +243,6 @@ mapServer <- function(id, con, sfObject, success) {
               leaflet::clearGroup(group = 'uploadedPoints')
           }
         } else if (geometryType %in% c('LINESTRING', 'MULTILINESTRING')) {
-          shiny::req(input$toggleUploadedTracklog)
           if (isTRUE(input$toggleUploadedTracklog)) {
             leaflet::leafletProxy(mapId = 'baseMap',
               data = sfObject) |>
@@ -294,9 +333,9 @@ mapServer <- function(id, con, sfObject, success) {
             data = pointData()[pointData()[['data_type']] !=
                 data_type()['incidental sampling'], ]) |>
             leaflet::addCircleMarkers(
-              radius = 5, color = zissou()[7], fillColor = zissou()[7],
+              radius = 5, color = zissou()[1], fillColor = zissou()[1],
               opacity = .5, fillOpacity = .5, weight = 1,
-              group = 'uploadedPoints',
+              group = 'completedPoints',
               layerId = ~sprintf('%s-%s', transect_id, order),
               popup = ~sprintf('%s-%s', transect_id, order))
             # leaflet::addMarkers(icon = bluePointSymbol,

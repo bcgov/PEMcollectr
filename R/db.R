@@ -178,10 +178,14 @@ select_distinct_transect_ids <- function(con, stagingTable, transectsTable) {
   )[['transect_id']]
 }
 add_incidental_ids <- function(transectIds, dataType, geometry) {
-  ifelse(dataType == data_type()['incidental sampling'],
-    apply(X = sf::st_coordinates(geometry), MARGIN = 1,
-      FUN = paste, collapse = ',')
-    , transectIds)
+  if (guess_geometry_type(geometry) == 'POINT') {
+    ifelse(dataType == data_type()['incidental sampling'],
+      apply(X = sf::st_coordinates(geometry), MARGIN = 1,
+        FUN = paste, collapse = ',')
+      , transectIds)
+  } else {
+    transectIds
+  }
 }
 #' PEM database operations
 #'
@@ -223,25 +227,29 @@ transfer_field_data_points <- function(con, transectIds) {
     })
   msg
 }
+#' @param stagedIds
+#'
+#' integer id of staged tracklogs
+#'
 #' @export
 #'
 #' @name dbOperations
-transfer_field_tracklog <- function(con, transectIds) {
+transfer_field_tracklog <- function(con, stagedIds) {
   msg <- tryCatch({
     DBI::dbBegin(conn = con)
     DBI::dbExecute(con,
       'CREATE TEMPORARY TABLE validatedTracklog (
-      transect_id VARCHAR(255)
+      id INT
       )
       ON COMMIT DROP')
     sql <- DBI::sqlAppendTable(con = con,
       table = DBI::SQL('validatedTracklog'), values =
-        data.frame(transect_id = transectIds), row.names = FALSE)
+        data.frame(id = stagedIds), row.names = FALSE)
     DBI::dbExecute(con, sql)
     DBI::dbExecute(con,
       'INSERT INTO transects.field_tracklog
       SELECT ft.* FROM staging.field_tracklog ft
-      JOIN validatedTracklog as vi on ft.transect_id = vi.transect_id')
+      JOIN validatedTracklog as vi on ft.id = vi.id')
     DBI::dbExecute(con,
       'DELETE FROM staging.field_tracklog as s
       USING transects.field_tracklog t

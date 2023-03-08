@@ -515,7 +515,19 @@ expand_list <- function(x, n = 4, times) {
     expand_list(x, n = n, times = times)
   }
 }
-#' Shiny Module to validate and report
+#' @export
+#'
+#' @rdname validateTable
+#'
+validateTableUi <- function(id) {
+  ns <- shiny::NS(id)
+  shiny::tags$div(
+    shiny::uiOutput(ns('dbFilterUi')),
+    reactable::reactableOutput(ns('dataValidation'))
+    )
+}
+
+#' Shiny module to validate and report
 #'
 #' @param id
 #'
@@ -523,7 +535,7 @@ expand_list <- function(x, n = 4, times) {
 #'
 #' @param sfObject
 #'
-#' reactive object returning sf data.frame
+#' reactive object returning sf dataframe
 #'
 #' @param success
 #'
@@ -533,24 +545,10 @@ expand_list <- function(x, n = 4, times) {
 #'
 #' connection to postgres database
 #'
-#' @export
-#'
 #' @name validateTable
 #'
-validateTableUi <- function(id) {
-  ns <- shiny::NS(id)
-  shiny::tags$div(
-    shiny::uiOutput(ns('dbFilterUi')),
-    reactable::reactableOutput(ns('dataValidation'))
-    )
-}
-#' @param progress
-#'
-#' optional shiny progress object
-#'
 #' @export
 #'
-#' @rdname validateTable
 validateTableServer <- function(id, sfObject, success, con) {
   shiny::moduleServer(
     id,
@@ -574,7 +572,9 @@ validateTableServer <- function(id, sfObject, success, con) {
         shiny::req(!inherits(dataInDb(), 'error'))
         geometryType <- guess_geometry_type(sfObject())
         if (geometryType == 'POINT') {
-          uniqueIds <- unique(as.data.frame(sfObject()[dataInDb(), ])[,
+          uniqueIds <- unique(as.data.frame(sfObject()[dataInDb() &
+              sfObject()[['data_type']] !=
+              data_type()['incidental sampling'], ])[,
             c('transect_id', 'observer')])
           if (nrow(uniqueIds) < 1) {
             return(NULL)
@@ -619,7 +619,6 @@ validateTableServer <- function(id, sfObject, success, con) {
             fill = TRUE, idcol = 'id')
           hardConstraints <- c('transect_id', 'point_type', 'order',
             'transition',
-            #'struc_mod', 'struc_stage',
             'observer', 'date_ymd', 'data_type',
             'geom')
           results[['Valid']] <- vapply(
@@ -750,7 +749,7 @@ validateTableServer <- function(id, sfObject, success, con) {
 #'
 #' @export
 #'
-#' @name validateTable
+#' @name validatePairs
 #'
 validatePairsUi <- function(id) {
   ns <- shiny::NS(id)
@@ -760,7 +759,7 @@ validatePairsUi <- function(id) {
 }
 #' @export
 #'
-#' @rdname validateTable
+#' @rdname validatePairs
 validatePairsServer <- function(id, sfObject, success, con) {
   shiny::moduleServer(
     id,
