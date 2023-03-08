@@ -225,8 +225,11 @@ mapServer <- function(id, con, sfObject, success) {
             data_type()['incidental sampling'], ]
         if (geometryType %in% 'POINT') {
           if (isTRUE(input$toggleUploadedPoints)) {
+            updateSwitchInput(session = session,
+              inputId = 'toggleUploadedTracklog', value = FALSE)
             leaflet::leafletProxy(mapId = 'baseMap',
               data = sfObject) |>
+              leaflet::clearGroup(group = 'uploadedTracklog') |>
               leaflet::addCircleMarkers(
                 radius = 5, color = zissou()[7], fillColor = zissou()[7],
                 opacity = .5, fillOpacity = .5, weight = 1,
@@ -244,8 +247,11 @@ mapServer <- function(id, con, sfObject, success) {
           }
         } else if (geometryType %in% c('LINESTRING', 'MULTILINESTRING')) {
           if (isTRUE(input$toggleUploadedTracklog)) {
+            updateSwitchInput(session = session,
+              inputId = 'toggleUploadedPoints', value = FALSE)
             leaflet::leafletProxy(mapId = 'baseMap',
               data = sfObject) |>
+              leaflet::clearGroup(group = 'uploadedPoints') |>
               leaflet::addPolylines(color= zissou()[7], weight = 2, opacity = 1,
                 group = 'uploadedTracklog',
                 layerId = ~sprintf('%s-tracklog', transect_id),
