@@ -62,13 +62,13 @@ validate_map_unit_transition(mapunit2)
 
 validate_points_column(dataFrame, colName)
 
-validate_PEM_data(dataFrame, f)
+validate_PEM_data(dataFrame, f, progress, n = 1)
 
-validate_field_points_data(transectPoints)
+validate_field_points_data(transectPoints, progress)
 
 validate_tracklog_column(dataFrame, colName)
 
-validate_field_tracklog_data(transectLines)
+validate_field_tracklog_data(transectLines, progress, n = 1)
 
 err_column_name(colName)
 
@@ -105,11 +105,13 @@ validate_sample_pairs(transectIds)
 
 \item{f}{a column validation function for PEM data}
 
+\item{progress}{optional shiny progress object}
+
+\item{n}{length}
+
 \item{transectPoints}{sf object with transect field points data}
 
 \item{transectLines}{sf object of tracklog line data}
-
-\item{n}{length}
 
 \item{distinct}{TRUE/FALSE should test be based on unique values}
 

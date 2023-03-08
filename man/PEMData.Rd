@@ -12,6 +12,7 @@
 \alias{transect_location}
 \alias{map_unit_veg}
 \alias{staging_tables}
+\alias{transects_tables}
 \title{Functions to produce a list of categories for PEM}
 \usage{
 map_unit_non_veg()
@@ -33,6 +34,8 @@ transect_location()
 map_unit_veg()
 
 staging_tables()
+
+transects_tables()
 }
 \value{
 named list with code as name and description as value

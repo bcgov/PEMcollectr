@@ -123,10 +123,10 @@ dbWriteServer <- function(id, sfObject, tableName, con) {
         geometryType <- guess_geometry_type(sfObject = sfObject)
         if (geometryType == 'POINT') {
           # rename incidental transect_id
-          isIncidental <- sfObject[['transect_id']] %in% 'incidental'
-          sfObject[['transect_id']][isIncidental] <- apply(
-            X = sf::st_coordinates(sfObject[isIncidental, ]), MARGIN = 1,
-            FUN = paste, collapse = ',')
+          sfObject[['transect_id']] <- add_incidental_ids(
+            transectIds = sfObject[['transect_id']],
+            dataType = sfObject[['data_type']],
+            geometry = sfObject[['geom']])
           # if mapunit is not valid, then it needs review
           needsReview <- !vapply(lapply(sfObject[['mapunit1']],
             validate_membership(members = c(map_unit_veg(), map_unit_non_veg()))
@@ -148,23 +148,41 @@ dbWriteServer <- function(id, sfObject, tableName, con) {
 }
 is_in_db <- function(con, transectIds, observers, stagingTable,
   transectsTable) {
-  inDb <- DBI::dbGetQuery(con,
-    sprintf('SELECT DISTINCT t.transect_id, observer
-      FROM (SELECT transect_id, observer FROM %s UNION
-      select transect_id, observer FROM %s) as t',
-      stagingTable, transectsTable)
-  )
-  paste(transectIds, observers, sep = '-') %in%
-    paste(inDb$transect_id, inDb$observer, sep = '-')
+  if (stagingTable == staging_tables()[['POINT']]) {
+    inDb <- DBI::dbGetQuery(con,
+      sprintf('SELECT DISTINCT t.transect_id, observer
+        FROM (SELECT transect_id, observer FROM %s UNION
+        select transect_id, observer FROM %s) as t',
+        stagingTable, transectsTable)
+    )
+    paste(transectIds, observers, sep = '-') %in%
+      paste(inDb$transect_id, inDb$observer, sep = '-')
+  } else {
+    inDb <- DBI::dbGetQuery(con,
+      sprintf('SELECT DISTINCT t.transect_id
+        FROM (SELECT transect_id FROM %s UNION
+        select transect_id FROM %s) as t',
+        stagingTable, transectsTable)
+    )
+    transectIds %in% inDb$transect_id
+  }
 }
 select_distinct_transect_ids <- function(con, stagingTable, transectsTable) {
   DBI::dbGetQuery(con,
-    sprintf('SELECT DISTINCT t.transect_id
-      FROM (SELECT transect_id FROM %s UNION
-      select transect_id FROM %s) as t', stagingTable, transectsTable)
+    sprintf("SELECT DISTINCT t.transect_id
+      FROM (SELECT transect_id, data_type FROM %s
+      UNION
+      select transect_id, data_type FROM %s ) as t
+      where t.data_type <> 'incidental'", stagingTable,
+      transectsTable)
   )[['transect_id']]
 }
-
+add_incidental_ids <- function(transectIds, dataType, geometry) {
+  ifelse(dataType == data_type()['incidental sampling'],
+    apply(X = sf::st_coordinates(geometry), MARGIN = 1,
+      FUN = paste, collapse = ',')
+    , transectIds)
+}
 #' PEM database operations
 #'
 #' @param con

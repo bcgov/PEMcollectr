@@ -21,7 +21,6 @@ geomUploadUi <- function(id) {
       buttonLabel = 'Browse')
     , shiny::uiOutput(ns('selectFileUi'))
     , shiny::uiOutput(ns('selectLayerUi'))
-    # , shiny::uiOutput(ns('geometryTypeUi'))
     , shiny::uiOutput(ns('validateUi'))
   )
 }
@@ -79,8 +78,28 @@ geomUploadServer <- function(id) {
       sfObject <- shiny::eventReactive(input$validateFile, {
         sfObject <- sf::st_read(dsn = filePath(), layer = input$selectedLayer,
           quiet = TRUE)
-        if (!'transect_id' %in% names(sfObject)) {
-          shiny::showNotification(ui = 'Data must contain at minimum a "transect_id" column.',
+        containsTransectId <- 'transect_id' %in% names(sfObject)
+        containsObserver <- 'observer' %in% names(sfObject)
+        geometryType <- guess_geometry_type(sfObject)
+        if (geometryType %in% 'POINT') {
+          if (!containsTransectId ||
+              !'observer' %in% names(sfObject)) {
+            shiny::showNotification(ui =
+                'Data must contain at minimum a "transect_id" and "observer" column.',
+              duration = NULL, type = 'error')
+            return(NULL)
+          }
+        } else if (geometryType %in% c('LINESTRING', 'MULTILINESTRING')) {
+          if (!containsTransectId) {
+            shiny::showNotification(ui =
+                'Data must contain at minimum a "transect_id" column.',
+              duration = NULL, type = 'error')
+            browser()
+            return(NULL)
+          }
+        } else {
+          shiny::showNotification(ui =
+              'Data must contain point or line geometry.',
             duration = NULL, type = 'error')
           return(NULL)
         }

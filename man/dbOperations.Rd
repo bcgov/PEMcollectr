@@ -3,9 +3,12 @@
 \name{dbOperations}
 \alias{dbOperations}
 \alias{transfer_field_data_points}
+\alias{transfer_field_tracklog}
 \title{PEM database operations}
 \usage{
 transfer_field_data_points(con, transectIds)
+
+transfer_field_tracklog(con, transectIds)
 }
 \arguments{
 \item{con}{connection to PEM database}

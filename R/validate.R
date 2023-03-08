@@ -24,6 +24,10 @@
 #'
 #' TRUE/FALSE for whether missing values are acceptable
 #'
+#' @param progress
+#'
+#' optional shiny progress object
+#'
 #' @param ...
 #'
 #' validation functions for x. See example for writing custom tests.
@@ -162,8 +166,8 @@ validate_time <- function(optional = FALSE) {
 #' @export
 validate_missing <- function() {
   function(x) {
-    isValid <- is.na(x)
-    success <- any(isValid)
+    isValid <- !is.na(x)
+    success <- all(isValid)
     description <- ifelse(success, '',
       sprintf('Missing records:\n%d records (%.2f%%) missing.',
         sum(!isValid, na.rm = TRUE),
@@ -540,6 +544,10 @@ validateTableUi <- function(id) {
     reactable::reactableOutput(ns('dataValidation'))
     )
 }
+#' @param progress
+#'
+#' optional shiny progress object
+#'
 #' @export
 #'
 #' @rdname validateTable
@@ -549,33 +557,50 @@ validateTableServer <- function(id, sfObject, success, con) {
     function(input, output, session) {
       dataInDb <- shiny::reactive({
         shiny::req(sfObject())
+        success$depend()
         geometryType <- guess_geometry_type(sfObject())
         stagingTable <- staging_tables()[[geometryType]]
         transectsTable <- transects_tables()[[geometryType]]
-        tryCatch(is_in_db(con = con, transectIds =
-            sfObject()[['transect_id']], observers = sfObject()[['observer']],
-          stagingTable = stagingTable, transectsTable = transectsTable),
+        transectIds <- add_incidental_ids(
+          transectIds = sfObject()[['transect_id']],
+          dataType = sfObject()[['data_type']],
+          geometry = sf::st_geometry(sfObject()))
+        tryCatch(is_in_db(con = con, transectIds = transectIds,
+          observers = sfObject()[['observer']], stagingTable = stagingTable,
+          transectsTable = transectsTable),
           error = identity)
       })
       output$dbFilterUi <- shiny::renderUI({
         shiny::req(!inherits(dataInDb(), 'error'))
-        uniqueIds <- unique(as.data.frame(sfObject()[dataInDb(), ])[,
-          c('transect_id', 'observer')])
-        if (nrow(uniqueIds) < 1) {
-          return(NULL)
+        geometryType <- guess_geometry_type(sfObject())
+        if (geometryType == 'POINT') {
+          uniqueIds <- unique(as.data.frame(sfObject()[dataInDb(), ])[,
+            c('transect_id', 'observer')])
+          if (nrow(uniqueIds) < 1) {
+            return(NULL)
+          }
+          shiny::tags$div(class='mb-2',
+            shiny::tags$h6('Data already submitted for (transect_id-observer):'),
+            paste(sprintf('%s-%s', uniqueIds[[1]], uniqueIds[[2]]),
+              collapse = '; ')
+          )
+        } else {
+          uniqueIds <- unique(as.data.frame(sfObject()[dataInDb(), ])[,
+            c('transect_id')])
+          if (length(uniqueIds) < 1) {
+            return(NULL)
+          }
+          shiny::tags$div(class='mb-2',
+            shiny::tags$h6('Data already submitted for (transect_id):'),
+            paste(sprintf('%s', uniqueIds),
+              collapse = '; ')
+          )
         }
-        shiny::tags$div(class='mb-2',
-          shiny::tags$h6('Data already submitted for (transect_id-observer):'),
-          paste(sprintf('%s-%s', uniqueIds[[1]], uniqueIds[[2]]),
-            collapse = '; ')
-        )
       })
       validationResults <- shiny::reactive({
         shiny::req(sfObject())
         success$depend()
         geometryType <- guess_geometry_type(sfObject())
-        #stagingTable <- staging_tables()[[geometryType]]
-        #transectsTable <- transects_tables()[[geometryType]]
         if (inherits(x = dataInDb(), 'error')) {
           shiny::showNotification(
             ui = 'Network connection error: database is unavailable. Please try again.',
@@ -592,9 +617,10 @@ validateTableServer <- function(id, sfObject, success, con) {
             lapply(validate_field_points_data(sfObject, progress = progress),
               data.table::as.data.table),
             fill = TRUE, idcol = 'id')
-          hardConstraints <- c('transect_id', 'point_type',
-            #'transition', 'struc_mod', 'struc_stage', 'observer',
-            'date_ymd', 'data_type',
+          hardConstraints <- c('transect_id', 'point_type', 'order',
+            'transition',
+            #'struc_mod', 'struc_stage',
+            'observer', 'date_ymd', 'data_type',
             'geom')
           results[['Valid']] <- vapply(
             split(results[ , hardConstraints],
@@ -798,3 +824,4 @@ validatePairsServer <- function(id, sfObject, success, con) {
     }
   )
 }
+

@@ -5,7 +5,14 @@
 \alias{updateSwitchInput}
 \title{Switch Input Control}
 \usage{
-switchInput(inputId, label, value = FALSE, disabled = FALSE, width = NULL)
+switchInput(
+  inputId,
+  label,
+  value = FALSE,
+  disabled = FALSE,
+  width = NULL,
+  class = ""
+)
 
 updateSwitchInput(
   session = getDefaultReactiveDomain(),
@@ -24,6 +31,8 @@ updateSwitchInput(
 \item{disabled}{disable user input}
 
 \item{width}{The width of the input, e.g. '400px', or '100\%'; see validateCssUnit().}
+
+\item{class}{additional classes for form.control}
 
 \item{session}{The session object passed to function given to shinyServer. Default is
 getDefaultReactiveDomain().}

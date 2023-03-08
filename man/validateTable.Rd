@@ -3,14 +3,11 @@
 \name{validateTable}
 \alias{validateTable}
 \alias{validateTableUi}
-\alias{validateTableServer}
 \alias{validatePairsUi}
 \alias{validatePairsServer}
 \title{Shiny Module to validate and report}
 \usage{
 validateTableUi(id)
-
-validateTableServer(id, sfObject, success, con)
 
 validatePairsUi(id)
 
@@ -24,6 +21,8 @@ validatePairsServer(id, sfObject, success, con)
 \item{success}{reactive trigger when data is successfully uploaded}
 
 \item{con}{connection to postgres database}
+
+\item{progress}{optional shiny progress object}
 }
 \description{
 Shiny Module to validate and report

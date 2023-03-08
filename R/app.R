@@ -112,6 +112,10 @@ bcgov_theme <- bslib::bs_add_rules(
 #'
 #' The width of the input, e.g. '400px', or '100%'; see validateCssUnit().
 #'
+#' @param class
+#'
+#' additional classes for form.control
+#'
 #' @param session
 #'
 #' The session object passed to function given to shinyServer. Default is
@@ -124,10 +128,10 @@ bcgov_theme <- bslib::bs_add_rules(
 #' @export
 #'
 switchInput <- function(inputId, label, value = FALSE, disabled = FALSE,
-  width = NULL) {
+  width = NULL, class = '') {
   value <- shiny::restoreInput(id = inputId, default = value)
-  inputTag <- shiny::tags$input(id = inputId, type = "checkbox",
-    role = "switch", class = "form-check-input", style='margin-right: 1rem;')
+  inputTag <- shiny::tags$input(id = inputId, type = 'checkbox',
+    role = 'switch', class = 'form-check-input', style='margin-right: 1rem;')
   if (!is.null(value) && value) {
     inputTag$attribs$checked <- NA
   }
@@ -135,12 +139,12 @@ switchInput <- function(inputId, label, value = FALSE, disabled = FALSE,
     inputTag$attribs$disabled <- NA
   }
   shiny::tags$div(
-    class = "form-group shiny-input-container",
+    class = sprintf('form-group shiny-input-container %s', class),
     style = sprintf('width: %s', shiny::validateCssUnit(width)),
     shiny::tags$div(
-      class = "from-check form-switch",
+      class = 'from-check form-switch',
       inputTag,
-      shiny::tags$label(label, class = "form-check-label")
+      shiny::tags$label(label, class = 'form-check-label')
     ),
   )
 }
