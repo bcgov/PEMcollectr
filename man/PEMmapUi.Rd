@@ -8,12 +8,16 @@
 \usage{
 mapUi(id)
 
-mapServer(id, con)
+mapServer(id, con, sfObject, success)
 }
 \arguments{
 \item{id}{namespace id}
 
 \item{con}{connection to postgres database}
+
+\item{sfObject}{uploaded sf object}
+
+\item{success}{shiny db trigger}
 }
 \description{
 Shiny module to show PEM data
