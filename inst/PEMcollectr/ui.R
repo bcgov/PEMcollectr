@@ -50,4 +50,3 @@ shiny::navbarPage(
     )
   )
 )
-

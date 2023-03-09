@@ -57,7 +57,7 @@ append_db <- function(con, x, tableName) {
   colNames <- names(x =
     DBI::dbGetQuery(conn = con, DBI::sqlInterpolate(conn = con,
       'SELECT * from ?tableName LIMIT 0', tableName = tableName)))
-  x <- x[ , colNames[!colNames %in% 'id']]
+  x <- x[, colNames[!colNames %in% 'id']]
   sf::st_write(obj = x, dsn = con, tableName, append = TRUE)
 }
 
@@ -261,8 +261,9 @@ transfer_field_tracklog <- function(con, stagedIds) {
   })
   msg
 }
-
-
+#' @export
+#'
+#' @rdname dbPhoto
 dbPhotoUi <- function(id) {
   ns <- shiny::NS(id)
   shiny::tags$div(
@@ -275,7 +276,24 @@ dbPhotoUi <- function(id) {
     leaflet::leafletOutput(ns('photoMap'))
   )
 }
-
+#' Module to select a point and upload a photo for it
+#'
+#' @param id
+#'
+#' namespace id
+#'
+#' @param con
+#'
+#' connection to postgres database
+#'
+#' @return
+#'
+#' a shiny reactive object row id of photo and a database trigger
+#'
+#' @export
+#'
+#' @name dbPhoto
+#'
 dbPhotoServer <- function(id, con) {
   shiny::moduleServer(
     id,
@@ -371,7 +389,6 @@ dbPhotoServer <- function(id, con) {
           n = 1000000))
         ext <- sub('.+\\.([A-Za-z]+)', '\\1', input$photoFile$datapath)
         binPhoto <- data.table::data.table(id, photo, ext)
-        #TODO: write transaction
         writeTransaction <- upsert_photo(con, binPhoto)
         if (inherits(writeTransaction, 'error')) {
           shiny::showNotification(ui = writeTransaction$message, type = 'error')
@@ -416,17 +433,36 @@ get_point_id <- function(con, transectId, observer, order) {
       transects_tables()[['POINT']],
       transectId, observer, order))[['id']]
 }
-
+#' @export
+#'
+#' @name ShowPhoto
 dbShowPhotoUi <- function(id) {
   ns <- shiny::NS(id)
   shiny::tags$div(shiny::imageOutput(ns('photoUi')),
     style = 'height: 700px;')
 }
+#' Queries a photo from the database and shows the image
+#'
+#' @param id
+#'
+#' namespace id
+#'
+#' @param con
+#'
+#' connection to postgres
+#'
+#' @param selectedPoint
+#'
+#' reactive list with id of point in database and a database trigger
+#'
+#' @export
+#'
+#' @name ShowPhoto
+#'
 dbShowPhotoServer <- function(id, con, selectedPoint) {
   shiny::moduleServer(
     id,
     function(input, output, session) {
-      ns <- session$ns
       output$photoUi <- shiny::renderImage({
         shiny::req(selectedPoint()[['id']])
         outfile <- tryCatch({
@@ -441,18 +477,10 @@ dbShowPhotoServer <- function(id, con, selectedPoint) {
       }, deleteFile = TRUE)
     })
 }
-# https://shiny.rstudio.com/articles/images.html
 convert_to_image <- function(con, id) {
   photo <- DBI::dbGetQuery(con,
     sprintf('select * from transects.photos where "id" in (%d)', id))
   temp <- tempfile(fileext = sprintf('.%s', photo[['ext']]))
   writeBin(photo[['photo']][[1]], con = temp, useBytes = TRUE)
   temp
-}
-read_plot <- function(con, id) {
-  photo <- DBI::dbGetQuery(con,
-    sprintf('select * from transects.photos where "id" in (%d)', id))
-  temp <- tempfile(fileext = sprintf('.%s', photo[['ext']]))
-  writeBin(photo[['photo']][[1]], con = temp, useBytes = TRUE)
-  magick::image_read(temp)
 }

@@ -79,13 +79,12 @@ geomUploadServer <- function(id) {
         sfObject <- sf::st_read(dsn = filePath(), layer = input$selectedLayer,
           quiet = TRUE)
         containsTransectId <- 'transect_id' %in% names(sfObject)
-        containsObserver <- 'observer' %in% names(sfObject)
         geometryType <- guess_geometry_type(sfObject)
         if (geometryType %in% 'POINT') {
           if (!containsTransectId ||
               !'observer' %in% names(sfObject)) {
             shiny::showNotification(ui =
-                'Data must contain at minimum a "transect_id" and "observer" column.',
+          'Data must contain at minimum a "transect_id" and "observer" column.',
               duration = NULL, type = 'error')
             return(NULL)
           }

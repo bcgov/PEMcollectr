@@ -62,13 +62,8 @@ validate_data <- function(x, ...) {
     }))
 }
 collect_validations <- function(validations) {
-  # noErrors <- sum(!vapply(validations, FUN = getElement,
-  # FUN.VALUE = logical(1),
-  #   name = 'status'))
   allMessages <- vapply(validations, FUN = getElement, FUN.VALUE = character(1),
     name = 'message')
-  #list(
-    #errors = noErrors,
   c(
     messages = paste0(allMessages[allMessages != ''], collapse = '; ')
   )
@@ -275,8 +270,8 @@ validate_transect_id <- function() {
       members = transect_location())(transectParts[['part4']])
     isValidSegments <- validate_float()(as.numeric(transectParts[['part2']]))
     isValidTotal <- validate_integer()(as.integer(transectParts[['part3']]))
-    validResults <- list(isValidMapUnit, isValidTransectLocation, isValidSegments,
-      isValidTotal)
+    validResults <- list(isValidMapUnit, isValidTransectLocation,
+      isValidSegments, isValidTotal)
     success <- all(vapply(validResults, FUN = getElement,
       FUN.VALUE = logical(1), name = 'status'))
     description <- collect_validations(validResults)
@@ -436,7 +431,8 @@ validate_tracklog_column <- function(dataFrame, colName) {
     comments = validate_data(x = dataFrame[[colName]], validate_character(),
       validate_char_length(255)),
     data_type =
-      validate_data(x = dataFrame[[colName]], validate_membership(members = data_type())),
+      validate_data(x = dataFrame[[colName]], validate_membership(
+        members = data_type())),
     geom = validate_data(x = dataFrame[[colName]], #validate_geometry(),
       validate_geometry_type(geometryType = 'LINESTRING')),
     err_column_name(colName)
@@ -575,27 +571,26 @@ validateTableServer <- function(id, sfObject, success, con) {
           uniqueIds <- unique(as.data.frame(sfObject()[dataInDb() &
               sfObject()[['data_type']] !=
               data_type()['incidental sampling'], ])[,
-            c('transect_id', 'observer')])
-          if (nrow(uniqueIds) < 1) {
-            return(NULL)
-          }
-          shiny::tags$div(class='mb-2',
-            shiny::tags$h6('Data already submitted for (transect_id-observer):'),
+                c('transect_id', 'observer')])
+          msg <- shiny::tags$div(class = 'mb-2',
+            shiny::tags$h6(
+              'Data already submitted for (transect_id-observer):'),
             paste(sprintf('%s-%s', uniqueIds[[1]], uniqueIds[[2]]),
               collapse = '; ')
           )
         } else {
           uniqueIds <- unique(as.data.frame(sfObject()[dataInDb(), ])[,
             c('transect_id')])
-          if (length(uniqueIds) < 1) {
-            return(NULL)
-          }
-          shiny::tags$div(class='mb-2',
+          msg <- shiny::tags$div(class = 'mb-2',
             shiny::tags$h6('Data already submitted for (transect_id):'),
             paste(sprintf('%s', uniqueIds),
               collapse = '; ')
           )
         }
+        if (length(uniqueIds) < 1) {
+          return(NULL)
+        }
+        msg
       })
       validationResults <- shiny::reactive({
         shiny::req(sfObject())
@@ -603,7 +598,7 @@ validateTableServer <- function(id, sfObject, success, con) {
         geometryType <- guess_geometry_type(sfObject())
         if (inherits(x = dataInDb(), 'error')) {
           shiny::showNotification(
-            ui = 'Network connection error: database is unavailable. Please try again.',
+    ui = 'Network connection error: database is unavailable. Please try again.',
             duration = 5, type = 'error')
           return(NULL)
         }
@@ -622,7 +617,7 @@ validateTableServer <- function(id, sfObject, success, con) {
             'observer', 'date_ymd', 'data_type',
             'geom')
           results[['Valid']] <- vapply(
-            split(results[ , hardConstraints],
+            split(results[, hardConstraints],
               results[['id']]), FUN = function(x) {
               all(x == '')
             }, FUN.VALUE = logical(1))
@@ -637,7 +632,7 @@ validateTableServer <- function(id, sfObject, success, con) {
           hardConstraints <- c('transect_id', 'date_ymd', 'data_type',
             'geom')
           results[['Valid']] <- vapply(
-            split(results[ , hardConstraints], results[['id']]),
+            split(results[, hardConstraints], results[['id']]),
             FUN = function(x) {
                 all(x == '')
               }, FUN.VALUE = logical(1))
@@ -663,7 +658,8 @@ validateTableServer <- function(id, sfObject, success, con) {
             .selection = reactable::colDef(
               sticky = 'left',
               headerClass = 'hide-checkbox',
-              class = ifelse(validationResults()[['Valid']], '', 'hide-checkbox')
+              class = ifelse(validationResults()[['Valid']], '',
+                'hide-checkbox')
             ),
             id = reactable::colDef(
               sticky = 'left',
@@ -711,9 +707,7 @@ validateTableServer <- function(id, sfObject, success, con) {
               if (value != '') {
                 shiny::tags$div(class = 'cell-error', value)
               }
-              #list(background = ifelse(value == '', blue, red))
             }),
-          #rowStyle = list(background = "rgba(0, 0, 0, 0.05)"),
           theme = reactable::reactableTheme(borderWidth = '1px',
             borderColor = '#00000040'),
           selection = "multiple",
@@ -721,7 +715,6 @@ validateTableServer <- function(id, sfObject, success, con) {
           defaultPageSize = 5,
           bordered = TRUE,
           resizable = TRUE,
-          #striped = TRUE,
           compact = TRUE
         )
       })
@@ -764,16 +757,13 @@ validatePairsServer <- function(id, sfObject, success, con) {
   shiny::moduleServer(
     id,
     function(input, output, session) {
-      validationResults <- shiny::reactive({
-        shiny::req(sfObject())
-      })
       output$pairValidation <- reactable::renderReactable({
         shiny::req(sfObject())
         success$depend()
         geometryType <- guess_geometry_type(sfObject())
         stagingTable <- staging_tables()[[geometryType]]
         transectsTable <- transects_tables()[[geometryType]]
-        dbTransectIds <- select_distinct_transect_ids(con= con,
+        dbTransectIds <- select_distinct_transect_ids(con = con,
           stagingTable = stagingTable, transectsTable = transectsTable)
         transectIds <- c(sort(unique(stats::na.omit(sfObject()[['transect_id']])
           )))
@@ -815,7 +805,6 @@ validatePairsServer <- function(id, sfObject, success, con) {
         pageSizeOptions = c(5, 10, 25, 50),
         defaultPageSize = 5,
         bordered = TRUE,
-        #striped = TRUE,
         resizable = TRUE,
         compact = TRUE
         )
@@ -823,4 +812,3 @@ validatePairsServer <- function(id, sfObject, success, con) {
     }
   )
 }
-

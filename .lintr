@@ -1,7 +1,7 @@
 linters: linters_with_defaults(
     line_length_linter(80),
     single_quotes_linter = NULL,
-    #object_name_linter = object_name_linter("camelCase"),
+    object_name_linter = NULL,#object_name_linter("camelCase"),
     spaces_inside_linter = NULL
   )
 exclusions: list(

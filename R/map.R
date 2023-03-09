@@ -31,12 +31,24 @@ mapServer <- function(id, con, sfObject, success) {
     id,
     function(input, output, session) {
       ns <- session$ns
-      redPointSymbol <- leaflegend::makeSymbolIcons(shape = 'circle',
+      redPoint <- leaflegend::makeSymbol(shape = 'circle',
         width = 10, color = zissou()[7], opacity = .5)
-      orangePointSymbol <- leaflegend::makeSymbolIcons(shape = 'circle',
+      orangePoint <- leaflegend::makeSymbol(shape = 'circle',
         width = 10, color = zissou()[6], opacity = .5)
-      bluePointSymbol <- leaflegend::makeSymbolIcons(shape = 'circle',
+      bluePoint <- leaflegend::makeSymbol(shape = 'circle',
         width = 10, color = zissou()[1], opacity = .5)
+      blackTriangle <- leaflegend::makeSymbol('triangle', color = 'black',
+        width = 20, opacity = 1, fillColor = 'transparent')
+      orangeTriangle <- leaflegend::makeSymbol('triangle', color = zissou()[6],
+        width = 20, opacity = 1, fillColor = 'transparent')
+      blueTriangle <- leaflegend::makeSymbol('triangle', color = zissou()[1],
+        width = 20, opacity = 1, fillColor = 'transparent')
+      redLine <- leaflegend::makeSymbol('rect', width = 20,
+        height = 5, color = zissou()[7], fillColor = zissou()[7])
+      orangeLine <- leaflegend::makeSymbol('rect', width = 20,
+        height = 5, color = zissou()[6], fillColor = zissou()[6])
+      blueLine <- leaflegend::makeSymbol('rect', width = 20,
+        height = 5, color = zissou()[1], fillColor = zissou()[1])
       aoi <- shiny::reactive({
         tryCatch(
           sf::st_transform(
@@ -53,63 +65,45 @@ mapServer <- function(id, con, sfObject, success) {
             provider = leaflet::providers$Esri.WorldTopoMap,
             options = leaflet::providerTileOptions(
               updateWhenZooming = FALSE)) |>
-          leaflet::fitBounds(lng1 = bb[['xmin']], lat1 =bb[['ymin']],
+          leaflet::fitBounds(lng1 = bb[['xmin']], lat1 = bb[['ymin']],
             lng2 = bb[['xmax']], lat2 = bb[['ymax']]) |>
           leaflet::addControl(card(title = shiny::tags$strong('Map Layers',
-            style='font-size: 16px;'),
-            shiny::tags$h6('Sample Plan', class='mt-0 font-weight-bold'),
-            shiny::tags$div(class='header-divider'),
+            style = 'font-size: 16px;'),
+            shiny::tags$h6('Sample Plan', class = 'mt-0 font-weight-bold'),
+            shiny::tags$div(class = 'header-divider'),
             switchInput(ns('toggleSamplePlan'), shiny::tags$div(
-              shiny::tags$img(src =
-                  leaflegend::makeSymbol('triangle', color = 'black',
-                    width = 20, opacity = 1, fillColor = 'transparent')),
-              'All'), value = TRUE, class='ms-3'),
+              shiny::tags$img(src = blackTriangle),
+              'All'), value = TRUE, class = 'ms-3'),
             switchInput(ns('togglePending'), shiny::tags$div(
-              shiny::tags$img(src =
-                  leaflegend::makeSymbol('triangle', color = zissou()[6],
-                    width = 20, opacity = 1, fillColor = 'transparent')),
-              'Pending'), value = FALSE, class='ms-3'),
+              shiny::tags$img(src = orangeTriangle),
+              'Pending'), value = FALSE, class = 'ms-3'),
             switchInput(ns('toggleComplete'), shiny::tags$div(
-              shiny::tags$img(src =
-                  leaflegend::makeSymbol('triangle', color = zissou()[1],
-                    width = 20, opacity = 1, fillColor = 'transparent')),
-              'Completed'), value = FALSE, class='ms-3'),
+              shiny::tags$img(src = blueTriangle),
+              'Completed'), value = FALSE, class = 'ms-3'),
             shiny::tags$h6('Points'),
-            shiny::tags$div(class='header-divider'),
+            shiny::tags$div(class = 'header-divider'),
             switchInput(ns('toggleUploadedPoints'), shiny::tags$div(
-              shiny::tags$img(src =  leaflegend::makeSymbol(
-                shape = 'circle', width = 20, color = zissou()[7],
-                opacity = .5)),
-              'Uploaded'), value = FALSE, class='ms-3'),
+              shiny::tags$img(src = redPoint),
+              'Uploaded'), value = FALSE, class = 'ms-3'),
             switchInput(ns('toggleStagedPoints'), shiny::tags$div(
-              shiny::tags$img(src =  leaflegend::makeSymbol(
-                shape = 'circle', width = 20, color = zissou()[6],
-                opacity = .5)),
-              'Staged'), value = FALSE, class='ms-3'),
+              shiny::tags$img(src =  orangePoint),
+              'Staged'), value = FALSE, class = 'ms-3'),
             switchInput(ns('togglePoints'), shiny::tags$div(
-              shiny::tags$img(src =  leaflegend::makeSymbol(
-                shape = 'circle', width = 20, color = zissou()[1],
-                opacity = .5)),
-              'Completed'), value = FALSE, class='ms-3'),
+              shiny::tags$img(src =  bluePoint),
+              'Completed'), value = FALSE, class = 'ms-3'),
             shiny::tags$h6('Tracklog'),
-            shiny::tags$div(class='header-divider'),
+            shiny::tags$div(class = 'header-divider'),
             switchInput(ns('toggleUploadedTracklog'), shiny::tags$div(
-              shiny::tags$img(src = leaflegend::makeSymbol('rect', width = 20,
-                height= 5, color = zissou()[7], fillColor = zissou()[7])),
-                'Uploaded'),
+              shiny::tags$img(src = redLine), 'Uploaded'),
               value = FALSE, class = 'ms-3'),
             switchInput(ns('toggleStagedTracklog'), shiny::tags$div(
-              shiny::tags$img(src = leaflegend::makeSymbol('rect', width = 20,
-                height= 5, color = zissou()[6], fillColor = zissou()[6])),
-              'Staged'),
+              shiny::tags$img(src = orangeLine), 'Staged'),
               value = FALSE, class = 'ms-3'),
             switchInput(ns('toggleTracklog'), shiny::tags$div(
-              shiny::tags$img(src = leaflegend::makeSymbol('rect', width = 20,
-                height= 5, color = zissou()[1], fillColor = zissou()[1])),
-              'Completed'),
+              shiny::tags$img(src = blueLine), 'Completed'),
               value = FALSE, class = 'ms-3'),
-            class = 'bg-secondary mb-3', style='width: 225px'), className = '',
-            position = 'topright') |>
+            class = 'bg-secondary mb-3', style = 'width: 225px'),
+            className = '', position = 'topright') |>
           leaflet::addPolylines(data = aoi(), popup = ~name,
             color = '#003366', opacity = 1, weight = 3) |>
           leaflet::addLabelOnlyMarkers(data = find_boundary_point(aoi()),
@@ -117,7 +111,7 @@ mapServer <- function(id, con, sfObject, success) {
             label = ~name, labelOptions = leaflet::labelOptions(
               textsize = '12px', offset = c(0, -10),
               noHide = TRUE, textOnly = TRUE, direction = 'center',
-              style=list('color' =  '#003366', 'font-weight' = 'bold')),
+              style = list('color' =  '#003366', 'font-weight' = 'bold')),
             layerId = ~name)
         map
       })
@@ -126,7 +120,7 @@ mapServer <- function(id, con, sfObject, success) {
         shiny::req(!is.null(toggle))
         if (isTRUE(toggle)) {
           leaflet::leafletProxy(mapId = 'baseMap', data = samplePlan()) |>
-            leaflet::addPolylines(color='black', weight = 2, opacity = 1,
+            leaflet::addPolylines(color = 'black', weight = 2, opacity = 1,
               group = 'samplePlan', layerId = ~transect_id)
           updateSwitchInput(session = session,
             inputId = 'toggleComplete', value = FALSE)
@@ -158,8 +152,8 @@ mapServer <- function(id, con, sfObject, success) {
         transectIds <- sort(unique(stagedPointData()[['transect_id']][
           pointData()[['data_type']] != data_type()['incidental sampling']]))
         pattern <- sprintf('_(%s)$', paste(transect_location(), collapse = '|'))
-        incomplete <- transectIds[!sub(pattern,'', transectIds) %in%
-          unique(sub(pattern,'', completedSamplePlan()[['transect_id']]))]
+        incomplete <- transectIds[!sub(pattern, '', transectIds) %in%
+          unique(sub(pattern, '', completedSamplePlan()[['transect_id']]))]
         partials <- unique(pointData()[['transect_id']][
           sub(pattern, '', pointData()[['transect_id']])
           %in% sub(pattern, '', incomplete)])
@@ -180,12 +174,12 @@ mapServer <- function(id, con, sfObject, success) {
         if (isTRUE(toggle)) {
           leaflet::leafletProxy(mapId = 'baseMap',
             data = pendingSamplePlan()) |>
-            leaflet::addPolylines(color= zissou()[6], weight = 2, opacity = 1,
+            leaflet::addPolylines(color = zissou()[6], weight = 2, opacity = 1,
               group = 'samplePlan', layerId = ~transect_id)
         } else {
           leaflet::leafletProxy(mapId = 'baseMap',
             data = pendingSamplePlan()) |>
-            leaflet::addPolylines(color= 'black', weight = 2, opacity = 1,
+            leaflet::addPolylines(color = 'black', weight = 2, opacity = 1,
               group = 'samplePlan', layerId = ~transect_id,
               popup = ~transect_id)
         }
@@ -196,12 +190,12 @@ mapServer <- function(id, con, sfObject, success) {
         if (isTRUE(toggle)) {
           leaflet::leafletProxy(mapId = 'baseMap',
             data = completedSamplePlan()) |>
-            leaflet::addPolylines(color= zissou()[1], weight = 2, opacity = 1,
+            leaflet::addPolylines(color = zissou()[1], weight = 2, opacity = 1,
               group = 'completed', layerId = ~transect_id)
         } else {
           leaflet::leafletProxy(mapId = 'baseMap',
             data = completedSamplePlan()) |>
-            leaflet::addPolylines(color= 'black', weight = 2, opacity = 1,
+            leaflet::addPolylines(color = 'black', weight = 2, opacity = 1,
               group = 'completed', layerId = ~transect_id,
               popup = ~transect_id)
         }
@@ -236,11 +230,6 @@ mapServer <- function(id, con, sfObject, success) {
                 group = 'uploadedPoints',
                 layerId = ~sprintf('%s-%s', transect_id, order),
                 popup = ~sprintf('%s-%s', transect_id, order))
-              # leaflet::addMarkers(
-              #   icon = redPointSymbol,
-              #   group = 'uploadedPoints',
-              #   layerId = ~sprintf('%s-%s', transect_id, order),
-              #   popup = ~sprintf('%s-%s', transect_id, order))
           } else {
             leaflet::leafletProxy(mapId = 'baseMap') |>
               leaflet::clearGroup(group = 'uploadedPoints')
@@ -252,7 +241,8 @@ mapServer <- function(id, con, sfObject, success) {
             leaflet::leafletProxy(mapId = 'baseMap',
               data = sfObject) |>
               leaflet::clearGroup(group = 'uploadedPoints') |>
-              leaflet::addPolylines(color= zissou()[7], weight = 2, opacity = 1,
+              leaflet::addPolylines(color = zissou()[7], weight = 2,
+                opacity = 1,
                 group = 'uploadedTracklog',
                 layerId = ~sprintf('%s-tracklog', transect_id),
                 popup = ~sprintf('%s-tracklog', transect_id))
@@ -262,7 +252,8 @@ mapServer <- function(id, con, sfObject, success) {
           }
         } else {
           shiny::showNotification(
-            ui = 'Unsupported geometry type or mixed geometry for uploaded data',
+            ui =
+              'Unsupported geometry type or mixed geometry for uploaded data',
             duration = NULL, type = 'error')
           return(NULL)
         }
@@ -290,10 +281,6 @@ mapServer <- function(id, con, sfObject, success) {
               group = 'stagedPoints',
               layerId = ~sprintf('%s-%s', transect_id, order),
               popup = ~sprintf('%s-%s', transect_id, order))
-            # leaflet::addMarkers(icon = orangePointSymbol,
-            #   layerId = ~sprintf('%s-%s', transect_id, order),
-            #   popup = ~sprintf('%s-%s', transect_id, order),
-            #   group = 'stagedPoints')
         } else {
           leaflet::leafletProxy(mapId = 'baseMap') |>
             leaflet::clearGroup(group = 'stagedPoints')
@@ -313,7 +300,7 @@ mapServer <- function(id, con, sfObject, success) {
         shiny::req(!is.null(toggle), !inherits(stagedTracklog(), 'error'))
         if (isTRUE(toggle)) {
           leaflet::leafletProxy(mapId = 'baseMap', data = stagedTracklog()) |>
-            leaflet::addPolylines(color= zissou()[6], weight = 2, opacity = 1,
+            leaflet::addPolylines(color = zissou()[6], weight = 2, opacity = 1,
               group = 'stagedTracklog',
               layerId = ~sprintf('%s-tracklog', transect_id),
               popup = ~sprintf('%s-tracklog', transect_id))
@@ -344,10 +331,6 @@ mapServer <- function(id, con, sfObject, success) {
               group = 'completedPoints',
               layerId = ~sprintf('%s-%s', transect_id, order),
               popup = ~sprintf('%s-%s', transect_id, order))
-            # leaflet::addMarkers(icon = bluePointSymbol,
-            #   layerId = ~sprintf('%s-%s', transect_id, order),
-            #   popup = ~sprintf('%s-%s', transect_id, order),
-            #   group = 'completedPoints')
         } else {
           leaflet::leafletProxy(mapId = 'baseMap') |>
             leaflet::clearGroup(group = 'completedPoints')
@@ -366,7 +349,7 @@ mapServer <- function(id, con, sfObject, success) {
         shiny::req(!is.null(toggle), !inherits(tracklog(), 'error'))
         if (isTRUE(toggle)) {
           leaflet::leafletProxy(mapId = 'baseMap', data = tracklog()) |>
-            leaflet::addPolylines(color= zissou()[1], weight = 2, opacity = 1,
+            leaflet::addPolylines(color = zissou()[1], weight = 2, opacity = 1,
               group = 'tracklog',
               layerId = ~sprintf('%s-tracklog', transect_id),
               popup = ~sprintf('%s-tracklog', transect_id))
@@ -387,7 +370,7 @@ find_boundary_point <- function(sfObject, coord = c('lat', 'lng'),
   decreasing <- type == 'max'
   geometry <- lapply(sf::st_geometry(sfObject), as.matrix)
   minCoord <- lapply(geometry, function(x, col) {
-    sf::st_point(x[order(x[,coord], decreasing = decreasing), ][1,])
+    sf::st_point(x[order(x[, coord], decreasing = decreasing), ][1, ])
   }, col = coord)
   sf::st_as_sf(
     cbind(sf::st_drop_geometry(sfObject), geom = sf::st_as_sfc(minCoord)),

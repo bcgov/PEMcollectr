@@ -131,7 +131,7 @@ switchInput <- function(inputId, label, value = FALSE, disabled = FALSE,
   width = NULL, class = '') {
   value <- shiny::restoreInput(id = inputId, default = value)
   inputTag <- shiny::tags$input(id = inputId, type = 'checkbox',
-    role = 'switch', class = 'form-check-input', style='margin-right: 1rem;')
+    role = 'switch', class = 'form-check-input', style = 'margin-right: 1rem;')
   if (!is.null(value) && value) {
     inputTag$attribs$checked <- NA
   }
