@@ -261,3 +261,198 @@ transfer_field_tracklog <- function(con, stagedIds) {
   })
   msg
 }
+
+
+dbPhotoUi <- function(id) {
+  ns <- shiny::NS(id)
+  shiny::tags$div(
+    shiny::uiOutput(ns('selectTransect')),
+    shiny::uiOutput(ns('selectObserver')),
+    shiny::uiOutput(ns('selectOrder')),
+    shiny::fileInput(ns('photoFile'), label = 'Select Photo', width = '100%',
+      accept = c('jpg', 'png', 'jpeg')),
+    shiny::uiOutput(ns('submitUi')),
+    leaflet::leafletOutput(ns('photoMap'))
+  )
+}
+
+dbPhotoServer <- function(id, con) {
+  shiny::moduleServer(
+    id,
+    function(input, output, session) {
+      ns <- session$ns
+      dbTrigger <- make_reactive_trigger()
+      transectObserver <- shiny::reactive({
+        DBI::dbGetQuery(conn = con,
+          sprintf('SELECT DISTINCT t.transect_id, observer, t.order
+        FROM (SELECT transect_id, observer, "order" FROM %s UNION
+        select transect_id, observer, "order" FROM %s) as t',
+            staging_tables()[['POINT']],
+            transects_tables()[['POINT']]))
+      })
+      output$selectTransect <- shiny::renderUI({
+        shiny::selectizeInput(ns('selectedTransect'), 'Select Transect ID',
+          choices = sort(unique(transectObserver()[['transect_id']])),
+          width = '100%')
+      })
+      output$selectObserver <- shiny::renderUI({
+        observers <- transectObserver()[['observer']][
+          transectObserver()[['transect_id']] == input$selectedTransect]
+        shiny::selectizeInput(ns('selectedObserver'), 'Select Observer',
+          choices = sort(unique(observers)),
+          width = '100%')
+      })
+      output$selectOrder <- shiny::renderUI({
+        orders <- transectObserver()[['order']][
+          transectObserver()[['transect_id']] == input$selectedTransect &
+            transectObserver()[['observer']] == input$selectedObserver]
+        shiny::selectizeInput(ns('selectedOrder'), 'Select Order',
+          choices = sort(unique(orders)),
+          width = '100%')
+      })
+      output$submitUi <- shiny::renderUI({
+        shiny::req(input$selectedTransect, input$selectedObserver,
+          input$selectedOrder, input$photoFile)
+        shiny::actionButton(inputId = ns('submit'), 'Submit',
+          class = 'btn-primary btn-sm mb-3')
+      })
+      mapData <- shiny::reactive({
+        shiny::req(input$selectedTransect, input$selectedObserver)
+        query <- sprintf("SELECT t.*
+        FROM (SELECT * FROM %s UNION
+        select * FROM %s) as t
+            where t.transect_id = \'%s\' and t.observer = \'%s\'",
+          staging_tables()[['POINT']],
+          transects_tables()[['POINT']],
+          input$selectedTransect, input$selectedObserver)
+        sf::st_transform(sf::st_read(dsn = con, query = query), crs = 4326)
+      })
+      output$photoMap <- leaflet::renderLeaflet({
+        shiny::req(mapData(), input$selectedOrder)
+        bb <- sf::st_bbox(mapData())
+        leaflet::leaflet() |>
+          leaflet::addProviderTiles(
+            provider = leaflet::providers$Esri.WorldTopoMap) |>
+          leaflet::fitBounds(lng1 = bb[['xmin']], lat1 = bb[['ymin']],
+            lng2 = bb[['xmax']], lat2 = bb[['ymax']])
+
+      })
+      shiny::observeEvent(input$photoMap_marker_click, {
+        clickId <- stats::setNames(
+          strsplit(input$photoMap_marker_click$id, split = '-')[[1]],
+          c('transect_id', 'observer', 'order'))
+        shiny::updateSelectizeInput(session = session,
+          inputId = 'selectedOrder', selected = clickId[['order']])
+      })
+      shiny::observeEvent(input$selectedOrder, {
+        colors <- ifelse(mapData()[['order']] == input$selectedOrder,
+          zissou()[7], zissou()[1])
+        leaflet::leafletProxy('photoMap') |>
+          leaflet::addCircleMarkers(
+            data = mapData(),
+            radius = 5, color = colors,
+            opacity = .5, fillOpacity = .5, weight = 1,
+            group = 'photoPoints',
+            layerId = ~sprintf('%s-%s-%s', transect_id, observer, order),
+            popup = ~sprintf('%s-%s-%s', transect_id, observer, order))
+      })
+      photoId <- shiny::reactive({
+        shiny::req(input$selectedTransect, input$selectedObserver,
+          input$selectedOrder)
+        get_point_id(con = con, transectId = input$selectedTransect,
+          observer = input$selectedObserver,
+          order = input$selectedOrder)
+      })
+      shiny::observeEvent(input$submit, {
+        shiny::req(input$selectedTransect, input$selectedObserver,
+          input$selectedOrder, input$photoFile)
+        id <- photoId()
+        photo <- blob::as_blob(readBin(input$photoFile$datapath, what = 'raw',
+          n = 1000000))
+        ext <- sub('.+\\.([A-Za-z]+)', '\\1', input$photoFile$datapath)
+        binPhoto <- data.table::data.table(id, photo, ext)
+        #TODO: write transaction
+        writeTransaction <- upsert_photo(con, binPhoto)
+        if (inherits(writeTransaction, 'error')) {
+          shiny::showNotification(ui = writeTransaction$message, type = 'error')
+        } else {
+          shiny::showNotification(ui = 'Photo uploaded.',
+            type = 'default')
+          dbTrigger$trigger()
+        }
+      })
+
+      selectedPoint <- shiny::reactive({
+        list(id = photoId(), success = dbTrigger$depend()
+        )
+      })
+      return(selectedPoint)
+
+    })
+}
+upsert_photo <- function(con, photoDf) {
+  msg <- tryCatch({
+    DBI::dbBegin(conn = con)
+    DBI::dbExecute(con,
+      sprintf('DELETE FROM transects.photos where id = %d', photoDf[['id']]))
+    DBI::dbExecute(conn = con,
+      DBI::sqlAppendTable(con = con, table = DBI::SQL('transects.photos'),
+        values = photoDf, row.names = FALSE))
+    DBI::dbCommit(con)
+  }, error = function(e) {
+    DBI::dbRollback(con)
+    e
+  })
+  msg
+}
+get_point_id <- function(con, transectId, observer, order) {
+  DBI::dbGetQuery(conn = con,
+    sprintf('SELECT id
+        FROM (SELECT "id", transect_id, observer, "order" FROM %s UNION
+        select "id", transect_id, observer, "order" FROM %s) as t
+            where transect_id in (\'%s\') and observer in (\'%s\')
+            and "order" in (%s)',
+      staging_tables()[['POINT']],
+      transects_tables()[['POINT']],
+      transectId, observer, order))[['id']]
+}
+
+dbShowPhotoUi <- function(id) {
+  ns <- shiny::NS(id)
+  shiny::tags$div(shiny::imageOutput(ns('photoUi')),
+    style = 'height: 700px;')
+}
+dbShowPhotoServer <- function(id, con, selectedPoint) {
+  shiny::moduleServer(
+    id,
+    function(input, output, session) {
+      ns <- session$ns
+      output$photoUi <- shiny::renderImage({
+        shiny::req(selectedPoint()[['id']])
+        outfile <- tryCatch({
+          convert_to_image(con, id = selectedPoint()[['id']])
+        }, error = identity)
+        shiny::req(!inherits(outfile, 'error'))
+        list(src = outfile,
+          contentType = 'image/jpg',
+          style = 'display: flex; margin: auto;',
+          height = 700,
+          alt = "This is alternate text")
+      }, deleteFile = TRUE)
+    })
+}
+# https://shiny.rstudio.com/articles/images.html
+convert_to_image <- function(con, id) {
+  photo <- DBI::dbGetQuery(con,
+    sprintf('select * from transects.photos where "id" in (%d)', id))
+  temp <- tempfile(fileext = sprintf('.%s', photo[['ext']]))
+  writeBin(photo[['photo']][[1]], con = temp, useBytes = TRUE)
+  temp
+}
+read_plot <- function(con, id) {
+  photo <- DBI::dbGetQuery(con,
+    sprintf('select * from transects.photos where "id" in (%d)', id))
+  temp <- tempfile(fileext = sprintf('.%s', photo[['ext']]))
+  writeBin(photo[['photo']][[1]], con = temp, useBytes = TRUE)
+  magick::image_read(temp)
+}

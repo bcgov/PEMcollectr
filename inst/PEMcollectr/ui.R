@@ -34,6 +34,20 @@ shiny::navbarPage(
           class = 'bg-secondary mb-3')
         )
     )
+  ),
+  shiny::tabPanel(title = 'Photo Submission',
+    shiny::fluidRow(
+      shiny::column(width = 4,
+        card(title = shiny::tags$strong('Upload Photo'),
+          dbPhotoUi('photo'),
+          class = 'bg-secondary mb-3')
+      ),
+      shiny::column(width = 8,
+        card(title = shiny::tags$strong('Photo'),
+          dbShowPhotoUi('showPhoto'),
+          class = 'bg-secondary mb-3')
+      )
+    )
   )
 )
 
