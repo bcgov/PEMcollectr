@@ -47,6 +47,18 @@ SELECT * INTO transects.field_tracklog FROM staging.field_tracklog;
 ALTER TABLE transects.field_tracklog ALTER COLUMN "id" SET NOT NULL;
 ALTER TABLE transects.field_tracklog ADD PRIMARY KEY("id");
 CREATE INDEX idx_field_tracklog on transects.field_tracklog(id);
+CREATE TABLE transects.sample_plan (
+	"id"          SERIAL PRIMARY KEY,
+	mapunit       varchar(255),
+	geom          geometry --lines
+);
+
+CREATE TABLE transects.photos (
+	"id"          int not null,
+	photo         bytea
+);
+ALTER TABLE transects.photos ADD ext varchar(255);
+ALTER TABLE transects.photos ADD PRIMARY KEY("id");
 --CREATE USER <uid> LOGIN PASSWORD <pwd>;
 GRANT USAGE ON SCHEMA staging to <uid>;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA staging TO <uid>;
@@ -54,8 +66,4 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA staging to <uid>;
 GRANT USAGE ON SCHEMA transects to <uid>;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA transects TO <uid>;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA transects to <uid>;
-CREATE TABLE transects.sample_plan (
-	"id"          SERIAL PRIMARY KEY,
-	mapunit       varchar(255),
-	geom          geometry --lines
-);
+

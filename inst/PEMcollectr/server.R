@@ -11,4 +11,7 @@ function(input, output, session) {
     con = con)
   validatePairsServer('validatePairs', sfObject = sfObject, success = dbWrite,
     con = con)
+  mapServer('dcMap', con = con, sfObject = sfObject, success = dbWrite)
+  photoId <- dbPhotoServer('photo', con = con)
+  dbShowPhotoServer('showPhoto', con = con, selectedPoint = photoId)
 }

@@ -1,6 +1,6 @@
 Package: PEMcollectr
 Title: A shiny app for uploading PEM field data
-Version: 0.0.1
+Version: 0.0.2
 Authors@R: 
     person("Thomas", "Roh", , "thomas@roh.engineering", role = c("aut", "cre"))
 Description: The package provides functions to validate PEM data and a shiny app for uploading data.
@@ -8,6 +8,7 @@ License: Apache License (>= 2)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.2
+Depends: R (>= 4.1.0) 
 Imports:
     sf,
     shiny,
@@ -15,7 +16,10 @@ Imports:
     DBI,
     pool,
     data.table,
-    reactable
+    reactable,
+    leaflet,
+    leaflegend,
+    blob
 Suggests: 
     knitr,
     rmarkdown,
