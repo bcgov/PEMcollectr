@@ -1,5 +1,8 @@
 # PEMcollectr 0.0.2
 
+* points that have photos now show up as orange and points that don't are blue 
+for the photo submission moduled
+
 * added and tested functionality for tracklogs
 
 * validation pairs modules now checks for data uploaded, staged, and complete

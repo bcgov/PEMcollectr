@@ -4,7 +4,7 @@
 \alias{dbWrite}
 \alias{dbWriteUi}
 \alias{dbWriteServer}
-\title{Databse upload module}
+\title{Database upload module}
 \usage{
 dbWriteUi(id)
 
@@ -20,5 +20,5 @@ dbWriteServer(id, sfObject, tableName, con)
 \item{con}{database connection object from connect_pg}
 }
 \description{
-Databse upload module
+Database upload module
 }

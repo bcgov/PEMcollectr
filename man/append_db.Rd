@@ -14,5 +14,5 @@ append_db(con, x, tableName)
 \item{tableName}{name of table; can use DBI::SQL use non-default schema}
 }
 \description{
-Append sf geometry table to a database table
+Checks column names from database and only selects those from data.frame
 }

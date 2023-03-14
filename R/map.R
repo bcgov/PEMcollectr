@@ -124,6 +124,8 @@ mapServer <- function(id, con, sfObject, success) {
               group = 'samplePlan', layerId = ~transect_id)
           updateSwitchInput(session = session,
             inputId = 'toggleComplete', value = FALSE)
+          updateSwitchInput(session = session,
+            inputId = 'togglePending', value = FALSE)
         } else {
           leaflet::leafletProxy(mapId = 'baseMap') |>
             leaflet::clearGroup(group = 'samplePlan')
@@ -175,13 +177,18 @@ mapServer <- function(id, con, sfObject, success) {
           leaflet::leafletProxy(mapId = 'baseMap',
             data = pendingSamplePlan()) |>
             leaflet::addPolylines(color = zissou()[6], weight = 2, opacity = 1,
-              group = 'samplePlan', layerId = ~transect_id)
+              group = 'pending', layerId = ~transect_id)
         } else {
-          leaflet::leafletProxy(mapId = 'baseMap',
-            data = pendingSamplePlan()) |>
-            leaflet::addPolylines(color = 'black', weight = 2, opacity = 1,
-              group = 'samplePlan', layerId = ~transect_id,
-              popup = ~transect_id)
+          if (input$toggleSamplePlan) {
+            leaflet::leafletProxy(mapId = 'baseMap',
+              data = pendingSamplePlan()) |>
+              leaflet::addPolylines(color = 'black', weight = 2, opacity = 1,
+                group = 'samplePlan', layerId = ~transect_id,
+                popup = ~transect_id)
+          } else {
+            leaflet::leafletProxy(mapId = 'baseMap') |>
+              leaflet::clearGroup(group = 'pending')
+          }
         }
       })
       shiny::observeEvent(input$toggleComplete, {
@@ -193,11 +200,16 @@ mapServer <- function(id, con, sfObject, success) {
             leaflet::addPolylines(color = zissou()[1], weight = 2, opacity = 1,
               group = 'completed', layerId = ~transect_id)
         } else {
-          leaflet::leafletProxy(mapId = 'baseMap',
-            data = completedSamplePlan()) |>
-            leaflet::addPolylines(color = 'black', weight = 2, opacity = 1,
-              group = 'completed', layerId = ~transect_id,
-              popup = ~transect_id)
+          if (input$toggleSamplePlan) {
+            leaflet::leafletProxy(mapId = 'baseMap',
+              data = completedSamplePlan()) |>
+              leaflet::addPolylines(color = 'black', weight = 2, opacity = 1,
+                group = 'samplePlan', layerId = ~transect_id,
+                popup = ~transect_id)
+          } else {
+            leaflet::leafletProxy(mapId = 'baseMap') |>
+              leaflet::clearGroup(group = 'completed')
+          }
         }
       })
       # uploaded data
@@ -361,7 +373,26 @@ mapServer <- function(id, con, sfObject, success) {
 
     })
 }
-
+#' Find boundary point of geometry
+#'
+#' @param sfObject
+#'
+#' sf data.frame
+#'
+#' @param coord
+#'
+#' which axis to find extreme point
+#'
+#' @param type
+#'
+#' which direction min/max
+#'
+#' @return
+#'
+#' sf dataframe
+#'
+#' @export
+#'
 find_boundary_point <- function(sfObject, coord = c('lat', 'lng'),
   type = c('min', 'max')) {
   coord <- match.arg(coord)

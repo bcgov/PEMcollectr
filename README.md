@@ -26,4 +26,26 @@ PEMcollectr::run_PEM_app(local = TRUE)
 or run `devtools::load` (ctrl+shift+l in Rstudio), open the 
 inst/PEMcollectR/ui.R or inst/PEMcollectR/ui.R and click Run App.
 
+#### Data Submission
 
+The module allows the users to upload point or tracklog data to a postgresql 
+database. The data column-wise and if the dataset passes all tests. Then 
+it can be loaded to a staging table. Datasets that have already been written to 
+the database are omitted.
+
+![](man/figures/data-submission.png)
+
+#### Map
+
+The module reads data from the database and validated data from the Data 
+Submission page to plot out the progress of the data collection. 
+
+![](man/figures/map.png)
+
+
+#### Photo submission
+
+The module allows the user to add and view photos for data points that have 
+been written to the database.
+
+![](man/figures/photo-submission.png)
