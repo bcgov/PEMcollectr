@@ -379,7 +379,6 @@ validate_points_column <- function(dataFrame, colName) {
       validate_data(x = dataFrame[[colName]],
         validate_membership(members = data_type())),
     geom = validate_data(x = dataFrame[[colName]],
-      #validate_geometry(),
       validate_geometry_type(geometryType = 'POINT')),
     validate_data(x = colName, err_column_name)
   )
@@ -433,7 +432,7 @@ validate_tracklog_column <- function(dataFrame, colName) {
     data_type =
       validate_data(x = dataFrame[[colName]], validate_membership(
         members = data_type())),
-    geom = validate_data(x = dataFrame[[colName]], #validate_geometry(),
+    geom = validate_data(x = dataFrame[[colName]],
       validate_geometry_type(geometryType = 'LINESTRING')),
     err_column_name(colName)
   )

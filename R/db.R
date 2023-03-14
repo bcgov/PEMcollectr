@@ -39,6 +39,8 @@ connect_pg <- function(dbname, host = Sys.getenv('PGHOST'), port = 5432,
 }
 #' Append sf geometry table to a database table
 #'
+#' Checks column names from database and only selects those from data.frame
+#'
 #' @param con
 #'
 #' database connection object from connect_pg
@@ -60,8 +62,7 @@ append_db <- function(con, x, tableName) {
   x <- x[, colNames[!colNames %in% 'id']]
   sf::st_write(obj = x, dsn = con, tableName, append = TRUE)
 }
-
-#' Databse upload module
+#' Database upload module
 #'
 #' @param id
 #'
@@ -146,6 +147,33 @@ dbWriteServer <- function(id, sfObject, tableName, con) {
       return(success)
     })
 }
+#' Check if transect is already in the database
+#'
+#' @param con
+#'
+#' connection to postgres
+#'
+#' @param transectIds
+#'
+#' vector of transect ids
+#'
+#' @param observers
+#'
+#' vector of observers
+#'
+#' @param stagingTable
+#'
+#' name of staging table \link{staging_tables}
+#'
+#' @param transectsTable
+#'
+#' name of transects table \link{transects_tables}
+#'
+#' @return
+#'
+#' boolean vector
+#'
+#' @export
 is_in_db <- function(con, transectIds, observers, stagingTable,
   transectsTable) {
   if (stagingTable == staging_tables()[['POINT']]) {
@@ -188,6 +216,9 @@ add_incidental_ids <- function(transectIds, dataType, geometry) {
   }
 }
 #' PEM database operations
+#'
+#' Runs a transaction to move data from staging to main table and
+#' deletes the staging record if missing
 #'
 #' @param con
 #'
@@ -336,9 +367,10 @@ dbPhotoServer <- function(id, con) {
       })
       mapData <- shiny::reactive({
         shiny::req(input$selectedTransect, input$selectedObserver)
-        query <- sprintf("SELECT t.*
+        query <- sprintf("SELECT t.*, p.id is not null as has_photo
         FROM (SELECT * FROM %s UNION
         select * FROM %s) as t
+          left join transects.photos as p on t.id = p.id
             where t.transect_id = \'%s\' and t.observer = \'%s\'",
           staging_tables()[['POINT']],
           transects_tables()[['POINT']],
@@ -363,8 +395,9 @@ dbPhotoServer <- function(id, con) {
           inputId = 'selectedOrder', selected = clickId[['order']])
       })
       shiny::observeEvent(input$selectedOrder, {
-        colors <- ifelse(mapData()[['order']] == input$selectedOrder,
-          zissou()[7], zissou()[1])
+        colors <- ifelse(mapData()[['has_photo']], zissou()[6],
+          zissou()[1])
+        colors[mapData()[['order']] == input$selectedOrder] <- zissou()[7]
         leaflet::leafletProxy('photoMap') |>
           leaflet::addCircleMarkers(
             data = mapData(),
@@ -407,6 +440,21 @@ dbPhotoServer <- function(id, con) {
 
     })
 }
+#' Add/Update photo to photo table
+#'
+#' @param con
+#'
+#' connection to postgres
+#'
+#' @param photoDf
+#'
+#' dataframe with photo as a blob
+#'
+#' @return
+#'
+#' error or TRUE if successful
+#'
+#' @export
 upsert_photo <- function(con, photoDf) {
   msg <- tryCatch({
     DBI::dbBegin(conn = con)
@@ -422,6 +470,31 @@ upsert_photo <- function(con, photoDf) {
   })
   msg
 }
+#' Get the unique data point id from staging/main table
+#'
+#' @param con
+#'
+#' connection to postgres
+#'
+#' @param transectId
+#'
+#' transect id
+#'
+#' @param observer
+#'
+#' observer
+#'
+#' @param order
+#'
+#' point order of sampling
+#'
+#'
+#' @return
+#'
+#' integer
+#'
+#' @export
+#'
 get_point_id <- function(con, transectId, observer, order) {
   DBI::dbGetQuery(conn = con,
     sprintf('SELECT id
@@ -477,6 +550,22 @@ dbShowPhotoServer <- function(id, con, selectedPoint) {
       }, deleteFile = TRUE)
     })
 }
+#' Converts binary data of photo in database to an on-disk image
+#'
+#' @param con
+#'
+#' connection to postgres
+#'
+#' @param id
+#'
+#' unique data point id
+#'
+#' @return
+#'
+#' name of temp file where image is stored
+#'
+#' @export
+#'
 convert_to_image <- function(con, id) {
   photo <- DBI::dbGetQuery(con,
     sprintf('select * from transects.photos where "id" in (%d)', id))
