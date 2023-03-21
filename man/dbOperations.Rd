@@ -18,5 +18,6 @@ transfer_field_tracklog(con, stagedIds)
 \item{stagedIds}{integer id of staged tracklogs}
 }
 \description{
-PEM database operations
+Runs a transaction to move data from staging to main table and
+deletes the staging record if missing
 }

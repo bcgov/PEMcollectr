@@ -72,6 +72,47 @@ make_reactive_trigger <- function() {
     }
   )
 }
+#' BCGov Developer color palettes
+#'
+#' See \url{https://developer.gov.bc.ca/Design-System/Colour-Palette}
+#'
+#' @return
+#'
+#' vector of hex codes
+#'
+#' @export
+#'
+#' @name BCGovColors
+bcgov_primary <- function() {
+  c('#003366', '#fcba19', '#4c81af')
+}
+#' @export
+#'
+#' @rdname BCGovColors
+bcgov_text <- function() {
+  c('#313132')
+}
+#' @export
+#'
+#' @rdname BCGovColors
+bcgov_links <- function() {
+  c('#1A5A96')
+}
+bcgov_backgrounds <- function() {
+  c('dark' = '#38598A', 'light' = '#F2F2F2')
+}
+#' @export
+#'
+#' @rdname BCGovColors
+bcgov_components <- function() {
+  c('#606060')
+}
+#' @export
+#'
+#' @rdname BCGovColors
+bcgov_semantic_colors <- function() {
+  c('error' = '#D8292F', 'success' = '#2E8540')
+}
 #' BCGov Shiny theme
 #'
 #' A function to create a theme for shiny
@@ -79,9 +120,12 @@ make_reactive_trigger <- function() {
 #' @export
 bcgov_theme <- bslib::bs_add_rules(
   bslib::bs_theme(version = 5, bootswatch = 'materia',
-    primary = '#003366',
+    primary = bcgov_primary()[1],
+    'link-color' = sprintf('%s', bcgov_links()[1]),
     'progress-height' = '1rem',
-    'navbar-padding-y' = '.1rem'),
+    'navbar-padding-y' = '.1rem',
+    'body-color' = bcgov_text()[1]
+    ),
   '.navbar.navbar-default {
     background-color: $primary !important;
   }
@@ -89,7 +133,6 @@ bcgov_theme <- bslib::bs_add_rules(
     background-color: #00000020;
   };
   ')
-
 #' Switch Input Control
 #'
 #' @param inputId

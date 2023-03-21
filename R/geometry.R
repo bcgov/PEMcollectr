@@ -48,7 +48,6 @@ geomUploadServer <- function(id) {
       output$selectFileUi <- shiny::renderUI({
         shiny::req(uploadedFiles())
         shiny::selectInput(inputId = ns('selectedFile'), label = 'Select File',
-          #TODO: add kml
           choices = grep('\\.(gpkg|shp)$', uploadedFiles()[['name']],
             value = TRUE), width = '100%')
       })
@@ -60,7 +59,7 @@ geomUploadServer <- function(id) {
       })
       filePath <- shiny::reactive({
         shiny::req(input$selectedFile)
-        if (isFALSE(check_req_files(selectedFile = input$selectedFile,
+        if (isFALSE(check_req_shp_files(selectedFile = input$selectedFile,
           uploadedFiles = uploadedFiles()[['name']]))) {
           shiny::showNotification('Missing required files for uploading data.
             Shapefiles require cpg, dbf, prj, shp, shx', duration = NULL,
@@ -111,7 +110,22 @@ geomUploadServer <- function(id) {
     }
   )
 }
-check_req_files <- function(selectedFile, uploadedFiles) {
+#' Check if required files for shapefiles are present
+#'
+#' @param selectedFile
+#'
+#' selected file with .shp file extension
+#'
+#' @param uploadedFiles
+#'
+#' vector of all uploaded files
+#'
+#' @return
+#'
+#' boolean
+#'
+#' @export
+check_req_shp_files <- function(selectedFile, uploadedFiles) {
   shpExt <- '\\.shp$'
   if (grepl(shpExt, selectedFile)) {
     all(sprintf('%s.%s', sub(shpExt, '', selectedFile),
