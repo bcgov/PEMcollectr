@@ -115,22 +115,6 @@ mapServer <- function(id, con, sfObject, success) {
             layerId = ~name)
         map
       })
-      shiny::observeEvent(input$toggleSamplePlan, {
-        toggle <- input$toggleSamplePlan
-        shiny::req(!is.null(toggle))
-        if (isTRUE(toggle)) {
-          leaflet::leafletProxy(mapId = 'baseMap', data = samplePlan()) |>
-            leaflet::addPolylines(color = 'black', weight = 2, opacity = 1,
-              group = 'samplePlan', layerId = ~transect_id)
-          updateSwitchInput(session = session,
-            inputId = 'toggleComplete', value = FALSE)
-          updateSwitchInput(session = session,
-            inputId = 'togglePending', value = FALSE)
-        } else {
-          leaflet::leafletProxy(mapId = 'baseMap') |>
-            leaflet::clearGroup(group = 'samplePlan')
-        }
-      })
       # sample plan
       samplePlan <- shiny::reactive({
         tryCatch(
@@ -170,6 +154,23 @@ mapServer <- function(id, con, sfObject, success) {
           validatePairs[['x']], validatePairs[['y']]))
         merge(samplePlan(), validatePairs, by = 'transect_id')
       })
+      shiny::observeEvent(input$toggleSamplePlan, {
+        toggle <- input$toggleSamplePlan
+        shiny::req(!is.null(toggle))
+        if (isTRUE(toggle)) {
+          leaflet::leafletProxy(mapId = 'baseMap', data = samplePlan()) |>
+            leaflet::addPolylines(color = 'black', weight = 2, opacity = 1,
+              group = 'samplePlan', layerId = ~transect_id,
+              popup = ~transect_id)
+          updateSwitchInput(session = session,
+            inputId = 'toggleComplete', value = FALSE)
+          updateSwitchInput(session = session,
+            inputId = 'togglePending', value = FALSE)
+        } else {
+          leaflet::leafletProxy(mapId = 'baseMap') |>
+            leaflet::clearGroup(group = 'samplePlan')
+        }
+      })
       shiny::observeEvent(input$togglePending, {
         toggle <- input$togglePending
         shiny::req(!is.null(toggle))
@@ -177,7 +178,7 @@ mapServer <- function(id, con, sfObject, success) {
           leaflet::leafletProxy(mapId = 'baseMap',
             data = pendingSamplePlan()) |>
             leaflet::addPolylines(color = zissou()[6], weight = 2, opacity = 1,
-              group = 'pending', layerId = ~transect_id)
+              group = 'pending', layerId = ~transect_id, popup = ~transect_id)
         } else {
           if (input$toggleSamplePlan) {
             leaflet::leafletProxy(mapId = 'baseMap',
@@ -198,7 +199,7 @@ mapServer <- function(id, con, sfObject, success) {
           leaflet::leafletProxy(mapId = 'baseMap',
             data = completedSamplePlan()) |>
             leaflet::addPolylines(color = zissou()[1], weight = 2, opacity = 1,
-              group = 'completed', layerId = ~transect_id)
+              group = 'completed', layerId = ~transect_id, popup = ~transect_id)
         } else {
           if (input$toggleSamplePlan) {
             leaflet::leafletProxy(mapId = 'baseMap',
@@ -368,6 +369,43 @@ mapServer <- function(id, con, sfObject, success) {
         } else {
           leaflet::leafletProxy(mapId = 'baseMap') |>
             leaflet::clearGroup(group = 'tracklog')
+        }
+      })
+      shiny::observeEvent(list(input$baseMap_zoom, input$baseMap_bounds), {
+        shiny::req(input$baseMap_zoom)
+        if (input$baseMap_zoom > 13) {
+          bb <- sf::st_bbox(stats::setNames(unlist(input$baseMap_bounds),
+            c('ymax', 'xmax', 'ymin', 'xmin')), crs = 4326) |>
+            sf::st_as_sfc() |>
+            sf::st_transform(crs = 3005) |>
+            sf::st_bbox()
+          samplePlanLabels <- samplePlan() |>
+            sf::st_transform(crs = 3005) |>
+            sf::st_crop(y = bb) |>
+            sf::st_centroid() |>
+            sf::st_transform(crs = 4326) |>
+            suppressWarnings()
+          samplePlanLabels <- samplePlanLabels[grepl(
+            'cLHS$', samplePlanLabels[['transect_id']]), ]
+          leaflet::leafletProxy(mapId = 'baseMap', data = samplePlanLabels) |>
+            leaflet::clearGroup('transectLabels') |>
+            leaflet::addLabelOnlyMarkers(
+              label = ~sub('_cLHS$', '', transect_id),
+              group = 'transectLabels',
+              labelOptions = leaflet::labelOptions(noHide = TRUE,
+                offset = c(0, 0),
+                textOnly = TRUE, direction = 'center', textsize = "8px",
+                style = list('color' =  bcgov_primary()[1], #'black',
+                  'font-weight' = 'bold', 'background-color' = '#ffffffB3',
+                  'border-color' = bcgov_primary()[1], 'border-width' = '1px',
+                  'border-style' = 'solid',
+                  'margin' = '2px',
+                  'padding-top' = '2px', 'padding-bottom' = '2px',
+                  'padding-left' = '3px', 'padding-right' = '3px',
+                  'background-opacity' = .3)))
+        } else {
+          leaflet::leafletProxy(mapId = 'baseMap') |>
+            leaflet::clearGroup('transectLabels')
         }
       })
 

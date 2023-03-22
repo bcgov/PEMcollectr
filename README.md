@@ -6,6 +6,16 @@
 # PEMcollectr
 A shiny app for uploading PEM field data.
 
+#### Requirements
+
+The shiny application runs with a postgresql database backend. To set up the 
+database, a script is located in inst/pg that defines the appropriate 
+schemas and adds a "app" user with privileges to perform the necessary 
+database operations. Prior to running the application, the following 
+environment variables will need to be set: PGHOST, PGUSER, and PGPASSWORD. 
+See `?connect_pg` for details. In addition, sample plans need to be loaded 
+outside of the app into the "transects.sample_plan" table. 
+
 To install and run in deployment:
 
 ```

@@ -298,7 +298,7 @@ make_format_message <- function(title, isValid, specification) {
 #' @export
 validate_map_unit_change <- function(mapunit1, mapunit2) {
   function(x) {
-    # convert to "NA" for comparisons as "!=" will return NA
+    # convert to 'NA' for comparisons as '!=' will return NA
     isValid <- sprintf('%s', mapunit1) != sprintf('%s', mapunit2)
     success <- all(isValid)
     description <- ifelse(success, '', 'Invalid pair:
@@ -518,7 +518,8 @@ validateTableUi <- function(id) {
   ns <- shiny::NS(id)
   shiny::tags$div(
     shiny::uiOutput(ns('dbFilterUi')),
-    reactable::reactableOutput(ns('dataValidation'))
+    reactable::reactableOutput(ns('dataValidation')),
+    shiny::uiOutput(ns('downloadUi'))
     )
 }
 
@@ -548,6 +549,7 @@ validateTableServer <- function(id, sfObject, success, con) {
   shiny::moduleServer(
     id,
     function(input, output, session) {
+      ns <- session$ns
       dataInDb <- shiny::reactive({
         shiny::req(sfObject())
         success$depend()
@@ -709,7 +711,7 @@ validateTableServer <- function(id, sfObject, success, con) {
             }),
           theme = reactable::reactableTheme(borderWidth = '1px',
             borderColor = '#00000040'),
-          selection = "multiple",
+          selection = 'multiple',
           pageSizeOptions = c(5, 10, 25, 50),
           defaultPageSize = 5,
           bordered = TRUE,
@@ -717,6 +719,29 @@ validateTableServer <- function(id, sfObject, success, con) {
           compact = TRUE
         )
       })
+      # Download report
+      reportCsv <- shiny::reactive({
+        submittedData <- data.frame(
+          id = unique(sfObject()[dataInDb(), ][['transect_id']]),
+          in_database = TRUE
+        )
+        rbind(cbind(validationResults(), in_database = FALSE),
+          submittedData, fill = TRUE)
+      })
+      output$downloadUi <- shiny::renderUI({
+        shiny::req(validationResults())
+        shiny::downloadButton(ns('downloadReport'), label = 'Download Report',
+          class = 'btn-sm btn-primary')
+      })
+      output$downloadReport <- shiny::downloadHandler(
+        filename = function() {
+          paste('validation-', format(Sys.time(), '%Y-%m-%d-%H%M%S'),
+            '.csv', sep = '')
+        },
+        content = function(file) {
+          utils::write.csv(reportCsv(), file, row.names = FALSE)
+        }
+      )
       return(submitIds)
     }
   )
