@@ -16,6 +16,8 @@ environment variables will need to be set: PGHOST, PGUSER, and PGPASSWORD.
 See `?connect_pg` for details. In addition, sample plans need to be loaded 
 outside of the app into the "transects.sample_plan" table. 
 
+#### Installation
+
 To install and run in deployment:
 
 ```
