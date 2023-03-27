@@ -1,3 +1,13 @@
+# PEMcollectr 0.0.3
+
+* added transect ids labels for transect groups and popups for transect ids 
+with location 
+
+* added download feature for validation results includes those already in 
+the database
+
+* add documentation in readme for postgresql setup
+
 # PEMcollectr 0.0.2
 
 * points that have photos now show up as orange and points that don't are blue 
